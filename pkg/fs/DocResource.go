@@ -28,10 +28,11 @@ func (dr *DocResource) Read(url string) (string, error) {
 
 	content, _, err := docconv.ConvertDoc(file)
 
-	//fmt.Printf("Converting file %v", data)
+	//fmt.Println(content)
 
 	if err != nil {
 		return "", fmt.Errorf("problem reading document %s, %v", file.Name(), err)
 	}
+
 	return content, nil
 }
