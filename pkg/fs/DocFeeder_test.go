@@ -21,8 +21,9 @@ func TestDocFeeder(t *testing.T) {
 
 	// r := StubReadsResource{nil}
 	fp := LocalFileProvider{}
+	dp := DevotionalParser{}
 	r := NewDocResource(&fp)
-	df := NewDocFeeder(r)
+	df := NewDocFeeder(r, &dp)
 
 	t.Run("it reads ten feeds", func(t *testing.T) {
 		feeds, err := df.Feeds(path)
