@@ -1,34 +1,45 @@
 package fs
 
 import (
-	"os"
 	"testing"
 
+	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/stretchr/testify/assert"
 )
 
-type StubReadsResource struct {
-	file *os.File
-}
-
-func (s *StubReadsResource) Read(url string) (string, error) {
-	//return "1\n\ntitle\n\npassage\n\ncontent\n\n2\n\ntitle\n\npassage\n\ncontent\n\n", nil
-	return "one feed", nil
-}
-
 func TestDocFeeder(t *testing.T) {
-	path := "Meditaciones 2019a.docx"
+	path := []string{
+		"./_test_feeds-10-0.docx",
+		"./_test_feeds-8-2.docx",
+		"./_test_not-exist-file.docx",
+	}
 
-	// r := StubReadsResource{nil}
 	fp := LocalFileProvider{}
-	dp := DevotionalParser{}
+	dp := devom.DevotionalParser{}
 	r := NewDocResource(&fp)
 	df := NewDocFeeder(r, &dp)
 
-	t.Run("it reads ten feeds", func(t *testing.T) {
-		feeds, err := df.Feeds(path)
+	t.Run("it reads 10 Feeds and 0 UnknownFeeds", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path[0])
 
 		assert.Empty(t, err)
+		assert.Empty(t, unknownFeeds)
 		assert.Equal(t, 10, len(feeds))
+	})
+
+	t.Run("it reads 8 Feeds and 2 UnknownFeeds", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path[1])
+
+		assert.Empty(t, err)
+		assert.Equal(t, 8, len(feeds))
+		assert.Equal(t, 2, len(unknownFeeds))
+	})
+
+	t.Run("it fails read feeds without file resource", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path[2])
+
+		assert.NotNil(t, err)
+		assert.Equal(t, 0, len(feeds))
+		assert.Equal(t, 0, len(unknownFeeds))
 	})
 }

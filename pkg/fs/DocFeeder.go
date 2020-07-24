@@ -1,8 +1,6 @@
 package fs
 
 import (
-	"log"
-
 	feeder "github.com/amelendres/go-feeder/pkg"
 )
 
@@ -20,14 +18,14 @@ func NewDocFeeder(r feeder.ReadsResource, p feeder.FeedParser) *DocFeeder {
 	}
 }
 
-func (dr *DocFeeder) Feeds(path string) ([]feeder.Feed, error) {
+func (dr *DocFeeder) Feeds(path string) ([]feeder.Feed, []feeder.UnknownFeed, error) {
 	text, err := dr.resource.Read(path)
-
-	//fmt.Println(text)
-	feeds := dr.parser.Parse(text)
-
 	if err != nil {
-		log.Fatal(err)
+		// log.Fatal(err)
+		return nil, nil, err
 	}
-	return feeds, nil
+
+	feeds, unknownFeeds := dr.parser.Parse(text)
+
+	return feeds, unknownFeeds, nil
 }

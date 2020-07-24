@@ -1,5 +1,5 @@
 package feeder
 
 type ReadsFeed interface {
-	Feeds(path string) ([]Feed, error)
+	Feeds(path string) ([]Feed, []UnknownFeed, error)
 }
