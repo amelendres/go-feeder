@@ -3,8 +3,7 @@ package devom
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"errors"
 	"log"
 	"net/http"
 )
@@ -26,26 +25,26 @@ type Passage struct {
 	Reference string `json:"reference"`
 }
 
-func CreateDevotional(dev Devotional) bool {
+var ErrCreatingDevotional = errors.New("does not create devotional")
+
+func CreateDevotional(dev Devotional) error {
 	url := "http://localhost:8030/api/v1/devotionals"
 	body, err := json.Marshal(dev)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	resp, err := http.Post(url, "json", bytes.NewBuffer(body))
+	log.Printf("[%s] %s \n", "POST", url)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
-	//defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("-> %s %s \npayload: %s\n", "POST", url, string(body))
-
-		body, _ = ioutil.ReadAll(resp.Body)
-		panic(body)
-		return false
+		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", url, string(body))
+		return ErrCreatingDevotional
 	}
-	return true
+
+	return nil
 }

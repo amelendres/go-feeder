@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"log"
 
 	"code.sajari.com/docconv"
 	feeder "github.com/amelendres/go-feeder/pkg"
@@ -23,14 +24,14 @@ func NewDocResource(fp feeder.FileProvider) *DocResource {
 func (dr *DocResource) Read(url string) (string, error) {
 	file, err := dr.fileProvider.File(url)
 	if err != nil {
+		log.Println(feeder.ErrOpeningFile, err)
 		return "", fmt.Errorf("problem opening file  %v", err)
 	}
 
-	content, _, err := docconv.ConvertDoc(file)
-
-	//fmt.Println(content)
+	content, _, err := docconv.ConvertDocx(file)
 
 	if err != nil {
+		log.Println(feeder.ErrReadingFile, err)
 		return "", fmt.Errorf("problem reading document %s, %v", file.Name(), err)
 	}
 

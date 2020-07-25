@@ -10,7 +10,10 @@ start: ## run cart server
 	@docker-compose up -d
 
 test: ## run tests
-	@go test ./...
+	@go test ./... -v
+	#custom pkg tesst
+	#go test ./pkg/server -run TestParseDevotionals -v
+	#go test ./pkg/fs -run TestDocFeeder -v
 
 coverage:
 	mkdir -p .build/test_results

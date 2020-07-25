@@ -2,6 +2,7 @@ package devom
 
 import (
 	"errors"
+	"log"
 	"regexp"
 	"strings"
 
@@ -45,7 +46,6 @@ func splitDevotionals(text string) []string {
 }
 
 func parseDevotional(text string) (feeder.Feed, error) {
-
 	lines := lines(text)
 
 	if len(lines) < 4 {
@@ -53,12 +53,11 @@ func parseDevotional(text string) (feeder.Feed, error) {
 		return nil, feeder.ErrUnknownFeed
 	}
 	if !isPassage(lines[2]) {
-		// log.Println(ErrFeedDoesNotHasPassage, text)
+		log.Println(ErrFeedDoesNotHasPassage, text)
 		return nil, ErrFeedDoesNotHasPassage
 	}
 
 	var feed []string
-
 	feed = append(feed, lines[0], lines[1], lines[2])
 	contentIdx := 4
 	if isBibleReading(lines[3]) {
@@ -88,6 +87,7 @@ func isBibleReading(txt string) bool {
 }
 
 func isPassage(txt string) bool {
+	txt = strings.TrimSpace(txt)
 	match, _ := regexp.MatchString(`^[“|"](.*)[”|"](.*)\((.*)\)`, txt)
 	return match
 }

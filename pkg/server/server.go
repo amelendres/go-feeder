@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -29,6 +28,7 @@ func NewDevServer(feedReader feeder.ReadsFeed) *DevServer {
 
 	router := mux.NewRouter()
 	router.Handle("/devotionals/import", http.HandlerFunc(ds.importDevotionalsHandler))
+	router.Handle("/devotionals/parse", http.HandlerFunc(ds.parseDevotionalsHandler))
 
 	ds.Handler = router
 
@@ -40,23 +40,51 @@ func (ds *DevServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Req
 	var importData devom.ImportDailyDevotionals
 	json.NewDecoder(r.Body).Decode(&importData)
 
-	feeds, err := ds.feedReader.Feeds(importData.FileUrl)
+	feeds, unknownFeeds, err := ds.feedReader.Feeds(importData.FileUrl)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
+	if len(unknownFeeds) > 0 {
+		log.Print(feeder.ErrUnknownFeed, unknownFeeds)
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+
 	for _, feed := range feeds {
 		dev := buildDevotional(feed, importData)
-		if devom.CreateDevotional(dev) {
+		if err = devom.CreateDevotional(dev); err == nil {
 			day, _ := strconv.Atoi(feed[0])
-			devom.AddDailyDevotional(devom.DailyDevotional{day, dev.Id}, importData.PlanId)
+			err = devom.AddDailyDevotional(devom.DailyDevotional{day, dev.Id}, importData.PlanId)
+			if err != nil {
+				log.Print(err)
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
 		}
-
 	}
-	log.SetOutput(os.Stderr)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
+
+	var importData devom.ImportDailyDevotionals
+	json.NewDecoder(r.Body).Decode(&importData)
+
+	feeds, unknownFeeds, err := ds.feedReader.Feeds(importData.FileUrl)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", jsonContentType)
+	parseFeeds := feeder.ParseFeeds{feeds, unknownFeeds}
+
+	json.NewEncoder(w).Encode(parseFeeds)
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func buildDevotional(feed []string, importData devom.ImportDailyDevotionals) devom.Devotional {

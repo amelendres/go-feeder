@@ -3,8 +3,8 @@ package devom
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -19,26 +19,25 @@ type DailyDevotional struct {
 	DevotionalId string `json:"devotionalId"`
 }
 
-func AddDailyDevotional(dev DailyDevotional, planId string) bool {
+var ErrAddingDailyDevotional = errors.New("does not add daily devotional")
+
+func AddDailyDevotional(dev DailyDevotional, planId string) error {
 	url := fmt.Sprintf("http://localhost:8030/api/v1/yearly-plans/%s/devotionals", planId)
 	body, err := json.Marshal(dev)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	resp, err := http.Post(url, "json", bytes.NewBuffer(body))
+	log.Printf("[%s] %s \n\n", "POST", url)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
-	//defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("-> %s %s \npayload: %s\n", "POST", url, string(body))
-
-		body, _ = ioutil.ReadAll(resp.Body)
-		panic(body)
-		return false
+		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", url, string(body))
+		return ErrAddingDailyDevotional
 	}
-	return true
+	return nil
 }
