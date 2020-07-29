@@ -28,7 +28,7 @@ func (dr *DocResource) Read(url string) (string, error) {
 		return "", fmt.Errorf("problem opening file  %v", err)
 	}
 
-	content, _, err := docconv.ConvertDocx(file)
+	content, _, err := docconv.ConvertDoc(file)
 
 	if err != nil {
 		log.Println(feeder.ErrReadingFile, err)

@@ -13,4 +13,5 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/unidoc/unioffice v1.4.0
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
+	google.golang.org/api v0.29.0
 )

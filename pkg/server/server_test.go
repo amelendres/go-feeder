@@ -2,26 +2,31 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	feeder "github.com/amelendres/go-feeder/pkg"
+	"github.com/amelendres/go-feeder/pkg/cloud"
 	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/amelendres/go-feeder/pkg/fs"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
 )
 
 var path = map[string]string{
-	"feeds-10-0": "../fs/_test_feeds-10-0.docx",
-	"feeds-8-2":  "../fs/_test_feeds-8-2.docx",
-	"no-file":    "../fs/_test_not-exist-file.docx",
-	"2019a":      "../fs/_test_2019a.docx",
+	"feeds-10-0":  "../fs/_test_feeds-10-0.docx",
+	"feeds-8-2":   "../fs/_test_feeds-8-2.docx",
+	"no-file":     "../fs/_test_not-exist-file.docx",
+	"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
 }
 
 var planIds = map[int]string{
@@ -120,6 +125,36 @@ func TestParseDevotionals(t *testing.T) {
 		ds.ServeHTTP(response, newPostParseDevotionalRequest(payload))
 
 		assert.Equal(t, http.StatusBadRequest, response.Code)
+	})
+}
+
+func TestGParseDevotionals(t *testing.T) {
+
+	googleAPIKey := os.Getenv("GOOGLE_API_KEY")
+	if googleAPIKey == "" {
+		log.Fatal("ERROR: you must provide a Google Api Key")
+	}
+	ctx := context.Background()
+	driveService, _ := drive.NewService(ctx, option.WithAPIKey(googleAPIKey))
+
+	fp := cloud.NewGDFileProvider(driveService)
+	parser := devom.DevotionalParser{}
+	res := fs.NewDocResource(fp)
+	feeder := fs.NewDocFeeder(res, &parser)
+
+	ds := NewDevServer(feeder)
+
+	t.Run("it parses from Google Drive File on POST", func(t *testing.T) {
+		payload.FileUrl = path["drive-2019a"]
+
+		response := httptest.NewRecorder()
+
+		ds.ServeHTTP(response, newPostParseDevotionalRequest(payload))
+
+		parseFeeds := getParseFeedsFromResponse(t, response.Body)
+		assert.Equal(t, http.StatusOK, response.Code)
+		assert.Equal(t, 100, len(parseFeeds.Feeds))
+		assert.Equal(t, 0, len(parseFeeds.UnknownFeeds))
 	})
 }
 
