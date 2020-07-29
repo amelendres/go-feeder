@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 type YearlyPlan struct {
@@ -22,7 +23,7 @@ type DailyDevotional struct {
 var ErrAddingDailyDevotional = errors.New("does not add daily devotional")
 
 func AddDailyDevotional(dev DailyDevotional, planId string) error {
-	url := fmt.Sprintf("http://localhost:8030/api/v1/yearly-plans/%s/devotionals", planId)
+	url := fmt.Sprintf("%s/yearly-plans/%s/devotionals", os.Getenv("DEVOM_API_URL"), planId)
 	body, err := json.Marshal(dev)
 	if err != nil {
 		return err

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 type Devotional struct {
@@ -28,7 +30,7 @@ type Passage struct {
 var ErrCreatingDevotional = errors.New("does not create devotional")
 
 func CreateDevotional(dev Devotional) error {
-	url := "http://localhost:8030/api/v1/devotionals"
+	url := fmt.Sprintf("%s/devotionals", os.Getenv("DEVOM_API_URL"))
 	body, err := json.Marshal(dev)
 	if err != nil {
 		return err

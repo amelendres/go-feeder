@@ -13,11 +13,13 @@ services:
             - '8050:5500'
         restart: unless-stopped
         networks:
-            - appto
+            - devom
+        env_file:
+            - .env
 #        volumes:
 #            - .:/app:delegated
 
 networks:
-    appto:
+    devom:
         #external: true
-        name: appto_go
+        name: devom_net
