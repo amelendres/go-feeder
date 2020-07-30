@@ -1,7 +1,6 @@
 FROM golang:1.14.4-alpine3.12
 
 ENV APP_NAME feeder
-#ENV PORT 5000
 
 WORKDIR /go/src/${APP_NAME}
 COPY . .
@@ -9,6 +8,9 @@ COPY . .
 RUN go get -d -v ./...
 RUN go install -v ./...
 
-CMD ["webserver"]
+RUN adduser -D appto
+# RUN chown -R appto:root /go/webserver
 
-#EXPOSE ${PORT}
+USER appto
+
+CMD ["webserver"]

@@ -16,10 +16,7 @@ services:
             - devom
         env_file:
             - .env
-#        volumes:
-#            - .:/app:delegated
 
 networks:
     devom:
-        #external: true
         name: devom_net

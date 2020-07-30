@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -35,7 +36,8 @@ func main() {
 
 	ds := server.NewDevServer(feeder)
 
-	if err := http.ListenAndServe(":5500", ds); err != nil {
-		log.Fatalf("could not listen on port 5000 %v", err)
+	port := os.Getenv("PORT")
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), ds); err != nil {
+		log.Fatalf("could not listen on port %s %v", port, err)
 	}
 }
