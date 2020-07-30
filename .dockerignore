@@ -4,3 +4,6 @@
 .DS_Store
 .build
 .env*
+.docker-compose*
+.Dockerfile*
+.gitlab-ci.yml
