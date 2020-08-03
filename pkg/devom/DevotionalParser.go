@@ -49,16 +49,16 @@ func parseDevotional(text string) (feeder.Feed, error) {
 	lines := lines(text)
 
 	if len(lines) < 4 {
-		// log.Println(feeder.ErrUnknownFeed, text)
 		return nil, feeder.ErrUnknownFeed
 	}
 	if !isPassage(lines[2]) {
 		log.Println(ErrFeedDoesNotHasPassage, text)
 		return nil, ErrFeedDoesNotHasPassage
 	}
+	passage := splitPassage(lines[2])
 
 	var feed []string
-	feed = append(feed, lines[0], lines[1], lines[2])
+	feed = append(feed, lines[0], lines[1], passage[0], passage[1])
 	contentIdx := 4
 	if isBibleReading(lines[3]) {
 		feed = append(feed, strings.Split(lines[3], "Lectura:")[1])
@@ -90,6 +90,26 @@ func isPassage(txt string) bool {
 	txt = strings.TrimSpace(txt)
 	match, _ := regexp.MatchString(`^[“|"](.*)[”|"](.*)\((.*)\)`, txt)
 	return match
+}
+
+func splitPassage(txt string) []string {
+	//todo: detect passage list and join into passage.text
+	var passage []string
+
+	lastPassageChar := regexp.MustCompile("”|\"\\s")
+
+	if len(lastPassageChar.FindAllString(txt, -1)) > 1 {
+		passage = append(passage, txt, "")
+	} else {
+		passage = lastPassageChar.Split(txt, -1)
+		if len(passage) < 2 {
+			log.Println(len(passage))
+			log.Fatalln(passage)
+		}
+		passage[0] = passage[0] + `”`
+	}
+
+	return passage
 }
 
 func trimSlice(slice []string) []string {

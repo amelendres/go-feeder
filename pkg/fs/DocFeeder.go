@@ -21,7 +21,6 @@ func NewDocFeeder(r feeder.ReadsResource, p feeder.FeedParser) *DocFeeder {
 func (dr *DocFeeder) Feeds(path string) ([]feeder.Feed, []feeder.UnknownFeed, error) {
 	text, err := dr.resource.Read(path)
 	if err != nil {
-		// log.Println(err)
 		return nil, nil, err
 	}
 
