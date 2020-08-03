@@ -1,9 +1,13 @@
 package feeder
 
 type Feed []string
-type UnknownFeed []string
+
+type UnknownFeed struct {
+	Feed      []string
+	FeedError string
+}
 
 type ParseFeeds struct {
-	Feeds        []Feed
 	UnknownFeeds []UnknownFeed
+	Feeds        []Feed
 }

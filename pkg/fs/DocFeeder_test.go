@@ -14,10 +14,12 @@ import (
 )
 
 var path = map[string]string{
-	"feeds-10-0":  "./_test_feeds-10-0.docx",
-	"feeds-8-2":   "./_test_feeds-8-2.docx",
+	"feeds-ok":    "./_test_feeds-ok.docx",
+	"feeds-ko":    "./_test_feeds-ko.docx",
 	"no-file":     "./_test_not-exist-file.docx",
 	"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
+	"drive-2019b": "1jmcatkzNedm1aT9Y3JHjB51V4MdmoAS2",
+	"drive-2019c": "1SQjizNJdE1QaIpbMB6oMcwHjc8_Lajue",
 }
 
 func TestDocFeeder(t *testing.T) {
@@ -27,20 +29,20 @@ func TestDocFeeder(t *testing.T) {
 	r := NewDocResource(&fp)
 	df := NewDocFeeder(r, &dp)
 
-	t.Run("it reads 10 Feeds and 0 UnknownFeeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-10-0"])
+	t.Run("it reads Feeds from Docx", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path["feeds-ok"])
 
 		assert.Empty(t, err)
 		assert.Empty(t, unknownFeeds)
-		assert.Equal(t, 10, len(feeds))
+		assert.Equal(t, 13, len(feeds))
 	})
 
-	t.Run("it reads 8 Feeds and 2 UnknownFeeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-8-2"])
+	t.Run("it reads Feeds with UnknownFeeds from Docx", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path["feeds-ko"])
 
 		assert.Empty(t, err)
-		assert.Equal(t, 8, len(feeds))
-		assert.Equal(t, 2, len(unknownFeeds))
+		assert.Equal(t, 7, len(feeds))
+		assert.Equal(t, 3, len(unknownFeeds))
 	})
 
 	t.Run("it fails read feeds without resource file", func(t *testing.T) {
@@ -67,7 +69,7 @@ func TestGDDocFeeder(t *testing.T) {
 	df := NewDocFeeder(r, &dp)
 
 	t.Run("it reads from Google Drive", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["drive-2019a"])
+		feeds, unknownFeeds, err := df.Feeds(path["drive-2019c"])
 
 		assert.Nil(t, err)
 		assert.Equal(t, 100, len(feeds))
