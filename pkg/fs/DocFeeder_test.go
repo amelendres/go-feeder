@@ -14,10 +14,11 @@ import (
 )
 
 var path = map[string]string{
-	"feeds-10-0":  "./_test_feeds-10-0.docx",
+	"feeds-ok":    "./_test_feeds-ok.docx",
 	"feeds-8-2":   "./_test_feeds-8-2.docx",
 	"no-file":     "./_test_not-exist-file.docx",
 	"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
+	"drive-2019b": "1jmcatkzNedm1aT9Y3JHjB51V4MdmoAS2",
 }
 
 func TestDocFeeder(t *testing.T) {
@@ -28,11 +29,11 @@ func TestDocFeeder(t *testing.T) {
 	df := NewDocFeeder(r, &dp)
 
 	t.Run("it reads 10 Feeds and 0 UnknownFeeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-10-0"])
+		feeds, unknownFeeds, err := df.Feeds(path["feeds-ok"])
 
 		assert.Empty(t, err)
 		assert.Empty(t, unknownFeeds)
-		assert.Equal(t, 10, len(feeds))
+		assert.Equal(t, 11, len(feeds))
 	})
 
 	t.Run("it reads 8 Feeds and 2 UnknownFeeds from Docx", func(t *testing.T) {
@@ -67,7 +68,7 @@ func TestGDDocFeeder(t *testing.T) {
 	df := NewDocFeeder(r, &dp)
 
 	t.Run("it reads from Google Drive", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["drive-2019a"])
+		feeds, unknownFeeds, err := df.Feeds(path["drive-2019b"])
 
 		assert.Nil(t, err)
 		assert.Equal(t, 100, len(feeds))
