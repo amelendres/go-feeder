@@ -23,8 +23,10 @@ import (
 )
 
 var path = map[string]string{
-	"feeds-10-0":  "../fs/_test_feeds-10-0.docx",
+	"feeds-ok":    "../fs/_test_feeds-ok.docx",
 	"feeds-8-2":   "../fs/_test_feeds-8-2.docx",
+	"feeds-2019a": "../fs/_test_feeds-2019a.docx",
+	"feeds-2019b": "../fs/_test_feeds-2019b.docx",
 	"no-file":     "../fs/_test_not-exist-file.docx",
 	"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
 }
@@ -51,16 +53,6 @@ func TestImportDevotionals(t *testing.T) {
 
 	ds := NewDevServer(feeder)
 
-	t.Run("it import Devotionals on POST", func(t *testing.T) {
-		payload.FileUrl = path["feeds-10-0"]
-
-		response := httptest.NewRecorder()
-		ds.ServeHTTP(response, newPostImportDevotionalRequest(payload))
-		assert.Equal(t, http.StatusAccepted, response.Code)
-		// assert.Equal(t, 10, len(getDevotionalsFromResponse(t, response.Body)))
-		//assert new devotionals
-	})
-
 	t.Run("it fails import Devotionals on POST", func(t *testing.T) {
 		payload.FileUrl = path["feeds-8-2"]
 
@@ -82,6 +74,22 @@ func TestImportDevotionals(t *testing.T) {
 		//assert new devotionals
 	})
 
+	t.Run("it import Devotionals on POST", func(t *testing.T) {
+		payload.FileUrl = path["feeds-ok"]
+
+		response := httptest.NewRecorder()
+		ds.ServeHTTP(response, newPostImportDevotionalRequest(payload))
+		assert.Equal(t, http.StatusAccepted, response.Code)
+		// assert.Equal(t, 10, len(getDevotionalsFromResponse(t, response.Body)))
+		//assert new devotionals
+	})
+
+	// t.Run("it import 2019 Yearly Plan Devotionals on POST", func(t *testing.T) {
+	// 	payload.FileUrl = path["feeds-2019a"]
+	// 	response := httptest.NewRecorder()
+	// 	ds.ServeHTTP(response, newPostImportDevotionalRequest(payload))
+	// 	assert.Equal(t, http.StatusAccepted, response.Code)
+	// })
 }
 
 func TestParseDevotionals(t *testing.T) {
