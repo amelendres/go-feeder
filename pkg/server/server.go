@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	feeder "github.com/amelendres/go-feeder/pkg"
 	"github.com/amelendres/go-feeder/pkg/devom"
@@ -80,7 +79,7 @@ func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("content-type", jsonContentType)
-	parseFeeds := feeder.ParseFeeds{feeds, unknownFeeds}
+	parseFeeds := feeder.ParseFeeds{unknownFeeds, feeds}
 
 	json.NewEncoder(w).Encode(parseFeeds)
 
@@ -88,14 +87,13 @@ func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func buildDevotional(feed []string, importData devom.ImportDailyDevotionals) devom.Devotional {
-	passage := strings.Split(feed[2], "(")
 
 	return devom.Devotional{
 		uuid.New().String(),
 		feed[1],
-		devom.Passage{passage[0], "(" + passage[1]},
+		devom.Passage{feed[2], feed[3]},
+		feed[5],
 		feed[4],
-		feed[3],
 		nil,
 		importData.AuthorId,
 		importData.PublisherId,

@@ -9,7 +9,9 @@ import (
 	feeder "github.com/amelendres/go-feeder/pkg"
 )
 
-var ErrFeedDoesNotHasPassage = errors.New("Feed doesn not has passage")
+var ErrFeedDoesNotHavePassage = errors.New("Feed does not have passage")
+var ErrFeedDoesNotHaveContent = errors.New("Feed does not have content")
+var ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
 
 type DevotionalParser struct{}
 
@@ -21,7 +23,8 @@ func (dp *DevotionalParser) Parse(txt string) ([]feeder.Feed, []feeder.UnknownFe
 	for _, dev := range devs {
 		feed, err := parseDevotional(dev)
 		if err != nil {
-			unknownFeeds = append(unknownFeeds, feeder.UnknownFeed{dev})
+			log.Println(err, dev)
+			unknownFeeds = append(unknownFeeds, feeder.UnknownFeed{lines(dev), err.Error()})
 		} else {
 			feeds = append(feeds, feed)
 		}
@@ -46,32 +49,62 @@ func splitDevotionals(text string) []string {
 }
 
 func parseDevotional(text string) (feeder.Feed, error) {
+	titleIdx := 1
+
+	dev := map[string]string{}
+
 	lines := lines(text)
+	dev["day"] = lines[0]
+	dev["title"] = lines[titleIdx]
 
 	if len(lines) < 4 {
-		// log.Println(feeder.ErrUnknownFeed, text)
 		return nil, feeder.ErrUnknownFeed
 	}
-	if !isPassage(lines[2]) {
-		log.Println(ErrFeedDoesNotHasPassage, text)
-		return nil, ErrFeedDoesNotHasPassage
+
+	var bibleReadingIdx int
+	dev["bibleReading"], bibleReadingIdx = bibleReading(lines)
+
+	if bibleReadingIdx == titleIdx+1 {
+		return nil, ErrFeedDoesNotHavePassage
+	}
+
+	if bibleReadingIdx > titleIdx+1 {
+		passage, err := passage(lines, titleIdx+1, bibleReadingIdx-1)
+		if err != nil {
+			return nil, err
+		}
+		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
+		dev["content"] = content(lines, bibleReadingIdx+1, len(lines)-1)
+
+	} else {
+		contentIdx := contentIndex(lines)
+		if contentIdx < 0 {
+			// log.Println(ErrFeedDoesNotHaveContent, text)
+			return nil, ErrFeedDoesNotHaveContent
+		}
+
+		if contentIdx == titleIdx+1 {
+			return nil, ErrFeedDoesNotHavePassage
+		}
+		passage, err := passage(lines, titleIdx+1, contentIdx-1)
+		if err != nil {
+			return nil, err
+		}
+		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
+		dev["content"] = content(lines, contentIdx, len(lines)-1)
+
+		// log.Println(dev["day"], titleIdx, contentIdx, dev["passage.text"], dev["passage.reference"])
+
 	}
 
 	var feed []string
-	feed = append(feed, lines[0], lines[1], lines[2])
-	contentIdx := 4
-	if isBibleReading(lines[3]) {
-		feed = append(feed, strings.Split(lines[3], "Lectura:")[1])
-	} else {
-		feed = append(feed, "")
-		contentIdx = 3
-	}
-
-	var content string
-	for i := contentIdx; i < len(lines); i++ {
-		content += lines[i]
-	}
-	feed = append(feed, content)
+	feed = append(feed,
+		dev["day"],
+		dev["title"],
+		dev["passage.text"],
+		dev["passage.reference"],
+		dev["bibleReading"],
+		dev["content"])
 
 	return feed, nil
 }
@@ -82,14 +115,87 @@ func lines(txt string) []string {
 	return lines
 }
 
+func content(lines []string, start int, end int) string {
+	content := ""
+	for i := start; i <= end; i++ {
+		// if content != "" {
+		// 	content += "\n"
+		// }
+		content += lines[i]
+	}
+
+	return content
+}
+
+func passage(lines []string, start int, end int) (Passage, error) {
+	txt := lines[start]
+
+	if start == end {
+		text, ref, err := splitPassage(txt)
+		return NewPassage(text, ref), err
+	}
+
+	var passage string
+	for i := start; i <= end; i++ {
+		if passage != "" {
+			passage += "\n\n"
+		}
+
+		passage += lines[i]
+	}
+	return NewPassage(passage, ""), nil
+}
+
+func contentIndex(lines []string) int {
+	index := 3
+	for key, line := range lines {
+		if isPassage(line) {
+			index = key + 1
+		} else {
+			if index > 0 {
+				return index
+			}
+		}
+	}
+	return index
+}
+
+func bibleReading(lines []string) (txt string, key int) {
+	for key, line := range lines {
+		if isBibleReading(line) {
+			return line, key
+		}
+	}
+	return "", -1
+}
+
 func isBibleReading(txt string) bool {
 	return strings.Contains(txt, "Lectura:")
 }
 
 func isPassage(txt string) bool {
 	txt = strings.TrimSpace(txt)
-	match, _ := regexp.MatchString(`^[“|"](.*)[”|"](.*)\((.*)\)`, txt)
+	match, _ := regexp.MatchString(`^[“|"](.*)[”|"](.*)\((.*)\).?$`, txt)
 	return match
+}
+
+func splitPassage(txt string) (text string, reference string, err error) {
+	var passage []string
+
+	lastPassageChar := regexp.MustCompile("”|\"(\\s*)\\(")
+
+	//WIP: passage list
+	if len(lastPassageChar.FindAllString(txt, -1)) > 1 {
+		return txt, "", nil
+	} else {
+		passage = lastPassageChar.Split(txt, -1)
+		if len(passage) < 2 {
+			return passage[0], "", ErrFeedDoesNotHaveValidPassage
+		}
+		passage[0] += `” (`
+	}
+
+	return passage[0], passage[1], nil
 }
 
 func trimSlice(slice []string) []string {

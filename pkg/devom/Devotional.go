@@ -29,6 +29,10 @@ type Passage struct {
 
 var ErrCreatingDevotional = errors.New("does not create devotional")
 
+func NewPassage(text, reference string) Passage {
+	return Passage{text, reference}
+}
+
 func CreateDevotional(dev Devotional) error {
 	url := fmt.Sprintf("%s/devotionals", os.Getenv("DEVOM_API_URL"))
 	body, err := json.Marshal(dev)

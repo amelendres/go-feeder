@@ -6,11 +6,16 @@ help:
 build: ## build and up docker containers
 	@docker-compose up --build -d
 
+build-prod: ## build docker container --prod
+	#@docker-compose -f docker-compose.prod.yml up -d --build
+	@docker-compose -f docker-compose.prod.yml up --build
+
 start: ## run cart server
 	@docker-compose up -d
 
 test: ## run tests
-	@go test ./... -v
+	#@go test ./... -v
+	@go DEVOM_API_URL=http://localhost:8030/api/v1
 	#custom pkg tesst
 	#go test ./pkg/server -run TestParseDevotionals -v
 	#go test ./pkg/fs -run TestDocFeeder -v
