@@ -192,7 +192,7 @@ func splitPassage(txt string) (text string, reference string, err error) {
 		if len(passage) < 2 {
 			return passage[0], "", ErrFeedDoesNotHaveValidPassage
 		}
-		passage[0] += `” (`
+		passage[0] += `”`
 	}
 
 	return passage[0], passage[1], nil
