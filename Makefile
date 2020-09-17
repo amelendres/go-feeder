@@ -6,10 +6,6 @@ help:
 build: ## build and up docker containers
 	@docker-compose up --build -d
 
-build-prod: ## build docker container --prod
-	#@docker-compose -f docker-compose.prod.yml up -d --build
-	@docker-compose -f docker-compose.prod.yml up --build
-
 start: ## run cart server
 	@docker-compose up -d
 
