@@ -44,11 +44,12 @@ func CreateDevotional(dev Devotional) error {
 	log.Printf("[%s] %s \n", "POST", url)
 
 	if err != nil {
+		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", url, string(body))
 		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", url, string(body))
+		log.Printf("STATUS ERROR: [%s] %s \npayload: %s\n\n reponse: status %d", "POST", url, string(body), resp.StatusCode)
 		return ErrCreatingDevotional
 	}
 

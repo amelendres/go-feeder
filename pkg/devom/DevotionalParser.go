@@ -118,10 +118,7 @@ func lines(txt string) []string {
 func content(lines []string, start int, end int) string {
 	content := ""
 	for i := start; i <= end; i++ {
-		// if content != "" {
-		// 	content += "\n"
-		// }
-		content += lines[i]
+		content += lines[i] + "\n\n"
 	}
 
 	return content
