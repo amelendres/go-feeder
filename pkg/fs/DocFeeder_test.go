@@ -41,8 +41,8 @@ func TestDocFeeder(t *testing.T) {
 		feeds, unknownFeeds, err := df.Feeds(path["feeds-ko"])
 
 		assert.Empty(t, err)
-		assert.Equal(t, 7, len(feeds))
-		assert.Equal(t, 3, len(unknownFeeds))
+		assert.Equal(t, 6, len(feeds))
+		assert.Equal(t, 4, len(unknownFeeds))
 	})
 
 	t.Run("it fails read feeds without resource file", func(t *testing.T) {

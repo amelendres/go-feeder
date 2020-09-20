@@ -122,8 +122,8 @@ func TestParseDevotionals(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 7, len(parseFeeds.Feeds))
-		assert.Equal(t, 3, len(parseFeeds.UnknownFeeds))
+		assert.Equal(t, 6, len(parseFeeds.Feeds))
+		assert.Equal(t, 4, len(parseFeeds.UnknownFeeds))
 	})
 
 	t.Run("it fails parse does not exists file on POST", func(t *testing.T) {
