@@ -1,5 +1,6 @@
-.idea
 .git
-.DS_Store
+.idea
+.vscode
 .build
+.DS_Store
 .env

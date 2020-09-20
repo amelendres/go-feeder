@@ -32,7 +32,7 @@ var path = map[string]string{
 }
 
 var planIds = map[int]string{
-	2019: "f889d0c9-baf9-483f-8cfe-da1c5e0e3572",
+	2019: "1bec054b-ec6c-4ec0-becc-1a46bee429fb",
 	2020: "a3f25740-d365-4c0e-8bd7-8dbb0a50cae3",
 	2021: "23a63256-f264-4d94-b7ed-8ce60f744ae3",
 	2022: "does-not-exists-this-yearly-plan-...",

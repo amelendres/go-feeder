@@ -1,7 +1,7 @@
 variables:
   APP_NAME_PRODUCTION: describa
 
-  APP_NAME_STAGING: describa
+  APP_NAME_STAGING: describa-staging
 
 stages:
   - build

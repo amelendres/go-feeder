@@ -13,8 +13,9 @@ test: ## run tests
 	#@go test ./... -v
 	@go DEVOM_API_URL=http://localhost:8030/api/v1
 	#custom pkg tesst
-	#go test ./pkg/server -run TestParseDevotionals -v
 	#go test ./pkg/fs -run TestDocFeeder -v
+	#go test ./pkg/server -run TestParseDevotionals -v
+	#DEVOM_API_URL=http://localhost:8030/api/v1 go test ./pkg/server -run TestImportDevotionals -v
 
 coverage:
 	mkdir -p .build/test_results
