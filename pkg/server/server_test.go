@@ -101,7 +101,7 @@ func TestParseDevotionals(t *testing.T) {
 
 	ds := NewDevServer(feeder)
 
-	t.Run("it parses 10 Feeds on POST", func(t *testing.T) {
+	t.Run("it parses Feeds OK on POST", func(t *testing.T) {
 		payload.FileUrl = path["feeds-ok"]
 
 		response := httptest.NewRecorder()
@@ -110,7 +110,7 @@ func TestParseDevotionals(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 13, len(parseFeeds.Feeds))
+		assert.Equal(t, 14, len(parseFeeds.Feeds))
 		assert.Equal(t, 0, len(parseFeeds.UnknownFeeds))
 	})
 

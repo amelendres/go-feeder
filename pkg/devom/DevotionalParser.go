@@ -178,7 +178,7 @@ func isPassage(txt string) bool {
 
 func splitPassage(txt string) (text string, reference string, err error) {
 	var passage []string
-	lastPassageChar := regexp.MustCompile(`[”"].(\s*)\(`)
+	lastPassageChar := regexp.MustCompile(`(”|")(\s*)\(`)
 	occurrences := lastPassageChar.FindAllString(txt, -1)
 
 	if len(occurrences) == 0 {
