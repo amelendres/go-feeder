@@ -5,47 +5,9 @@ variables:
 
 stages:
   - build
-  - test
-  - deploy
 
-build-staging:
+staging-build-deploy:
   stage: build
-  only:
-    - staging
-  services:
-    - docker:dind
-  script:
-    - echo "Build ..."
-    - docker build --file=Dockerfile --rm=true -t registry.heroku.com/$APP_NAME_STAGING/web .
-    - echo "Staging Building Complete!"
-
-build-prod:
-  stage: build
-  only:
-    - /^[0-9.]*$/
-  except:
-    - branches
-  services:
-    - docker:dind
-  script:
-    - echo "Build PROD ..."
-    - docker build --file=Dockerfile --rm=true -t registry.heroku.com/$APP_NAME_PROD/web .
-    - echo "PROD Building Complete!"  
-
-test:
-  stage: test
-  only:
-    - staging
-    - tags
-  services:
-    - docker:dind
-  script:
-    - echo "Test ..."
-    - go test ./pkg/fs -run TestDocFeeder
-    - echo "Test Complete!"
-
-deploy-staging:
-  stage: deploy
   image: docker:latest
   services:
     - docker:dind
@@ -54,13 +16,13 @@ deploy-staging:
   script:
     - echo "Deploying Staging..."
     - docker login -u _ -p $HEROKU_API_KEY registry.heroku.com
+    - docker build --file=Dockerfile --rm=true -t registry.heroku.com/$APP_NAME_STAGING/web .
     - docker push registry.heroku.com/$APP_NAME_STAGING/web
     - docker run -e HEROKU_API_KEY=$HEROKU_API_KEY wingrunr21/alpine-heroku-cli:latest container:release web -a $APP_NAME_STAGING
     - echo "Staging Deployment Complete!"
 
-
-deploy-prod:
-  stage: deploy
+prod-build-deploy:
+  stage: build
   image: docker:latest
   services:
     - docker:dind
@@ -69,8 +31,9 @@ deploy-prod:
   except:
     - branches
   script:
-    - echo "Deploying PROD..."
+    - echo "Deploying Prod..."
     - docker login -u _ -p $HEROKU_API_KEY registry.heroku.com
+    - docker build --file=Dockerfile --rm=true -t registry.heroku.com/$APP_NAME_PROD/web .
     - docker push registry.heroku.com/$APP_NAME_PROD/web
     - docker run -e HEROKU_API_KEY=$HEROKU_API_KEY wingrunr21/alpine-heroku-cli:latest container:release web -a $APP_NAME_PROD
-    - echo "PROD Deployment Complete!"
+    - echo "Prod Deployment Complete!"
