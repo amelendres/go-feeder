@@ -29,20 +29,12 @@ func TestDocFeeder(t *testing.T) {
 	r := NewDocResource(&fp)
 	df := NewDocFeeder(r, &dp)
 
-	t.Run("it reads Feeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-ok"])
-
-		assert.Empty(t, err)
-		assert.Empty(t, unknownFeeds)
-		assert.Equal(t, 13, len(feeds))
-	})
-
 	t.Run("it reads Feeds with UnknownFeeds from Docx", func(t *testing.T) {
 		feeds, unknownFeeds, err := df.Feeds(path["feeds-ko"])
 
 		assert.Empty(t, err)
-		assert.Equal(t, 6, len(feeds))
-		assert.Equal(t, 4, len(unknownFeeds))
+		assert.Equal(t, 5, len(feeds))
+		assert.Equal(t, 5, len(unknownFeeds))
 	})
 
 	t.Run("it fails read feeds without resource file", func(t *testing.T) {
@@ -51,6 +43,14 @@ func TestDocFeeder(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.Equal(t, 0, len(feeds))
 		assert.Equal(t, 0, len(unknownFeeds))
+	})
+
+	t.Run("it reads Feeds from Docx", func(t *testing.T) {
+		feeds, unknownFeeds, err := df.Feeds(path["feeds-ok"])
+
+		assert.Empty(t, err)
+		assert.Empty(t, unknownFeeds)
+		assert.Equal(t, 14, len(feeds))
 	})
 }
 

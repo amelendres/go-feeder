@@ -1,13 +1,12 @@
 variables:
-  APP_NAME_PRODUCTION: describa
+  APP_NAME_PROD: describa
 
   APP_NAME_STAGING: describa-staging
 
 stages:
   - build
-  - deploy
 
-staging-build-deploy-to-Heroku:
+staging-build-deploy:
   stage: build
   image: docker:latest
   services:
@@ -21,3 +20,20 @@ staging-build-deploy-to-Heroku:
     - docker push registry.heroku.com/$APP_NAME_STAGING/web
     - docker run -e HEROKU_API_KEY=$HEROKU_API_KEY wingrunr21/alpine-heroku-cli:latest container:release web -a $APP_NAME_STAGING
     - echo "Staging Deployment Complete!"
+
+prod-build-deploy:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    - /^[0-9.]*$/
+  except:
+    - branches
+  script:
+    - echo "Deploying Prod..."
+    - docker login -u _ -p $HEROKU_API_KEY registry.heroku.com
+    - docker build --file=Dockerfile --rm=true -t registry.heroku.com/$APP_NAME_PROD/web .
+    - docker push registry.heroku.com/$APP_NAME_PROD/web
+    - docker run -e HEROKU_API_KEY=$HEROKU_API_KEY wingrunr21/alpine-heroku-cli:latest container:release web -a $APP_NAME_PROD
+    - echo "Prod Deployment Complete!"

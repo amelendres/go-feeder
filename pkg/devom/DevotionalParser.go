@@ -178,17 +178,22 @@ func isPassage(txt string) bool {
 
 func splitPassage(txt string) (text string, reference string, err error) {
 	var passage []string
+	lastPassageChar := regexp.MustCompile(`(”|")(\s*)\(`)
+	occurrences := lastPassageChar.FindAllString(txt, -1)
 
-	lastPassageChar := regexp.MustCompile("^[“”]|\"(\\s*)\\(")
+	if len(occurrences) == 0 {
+		return txt, "", ErrFeedDoesNotHaveValidPassage
+	}
 
-	if len(lastPassageChar.FindAllString(txt, -1)) > 1 {
+	if len(occurrences) > 1 {
 		return txt, "", nil
 	} else {
-		passage = lastPassageChar.Split(strings.TrimSpace(txt), -1)
+		passage = lastPassageChar.Split(txt, -1)
 		if len(passage) < 2 {
 			return passage[0], "", ErrFeedDoesNotHaveValidPassage
 		}
 		passage[0] += `”`
+		passage[1] = `(` + passage[1]
 	}
 
 	return passage[0], passage[1], nil
