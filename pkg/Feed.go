@@ -1,4 +1,4 @@
-package feeder
+package feed
 
 type Feed []string
 

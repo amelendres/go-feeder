@@ -30,7 +30,7 @@ func main() {
 	}
 
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.DevotionalParser{}
+	parser := devom.Parser{}
 	res := fs.NewDocResource(fp)
 	feeder := fs.NewDocFeeder(res, &parser)
 

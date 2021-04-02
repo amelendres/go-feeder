@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	feed "github.com/amelendres/go-feeder/pkg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,7 +15,7 @@ type GDFileProvider struct {
 	file  *os.File
 }
 
-func NewGDFileProvider(ds *drive.Service) *GDFileProvider {
+func NewGDFileProvider(ds *drive.Service) feed.FileProvider {
 
 	return &GDFileProvider{ds, nil}
 }

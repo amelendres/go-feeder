@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/levigross/exp-html v0.0.0-20120902181939-8df60c69a8f5 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.6.1
 	github.com/unidoc/unioffice v1.4.0
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect

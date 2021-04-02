@@ -1,5 +1,5 @@
-package feeder
+package feed
 
-type FeedParser interface {
+type Parser interface {
 	Parse(txt string) ([]Feed, []UnknownFeed)
 }

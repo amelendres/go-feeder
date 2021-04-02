@@ -1,16 +1,16 @@
 package fs
 
 import (
-	feeder "github.com/amelendres/go-feeder/pkg"
+	feed "github.com/amelendres/go-feeder/pkg"
 )
 
 type DocFeeder struct {
-	resource feeder.ReadsResource
-	parser   feeder.FeedParser
-	feeds    []feeder.Feed
+	resource feed.Reader
+	parser   feed.Parser
+	feeds    []feed.Feed
 }
 
-func NewDocFeeder(r feeder.ReadsResource, p feeder.FeedParser) *DocFeeder {
+func NewDocFeeder(r feed.Reader, p feed.Parser) feed.Feeder {
 
 	return &DocFeeder{
 		resource: r,
@@ -18,7 +18,7 @@ func NewDocFeeder(r feeder.ReadsResource, p feeder.FeedParser) *DocFeeder {
 	}
 }
 
-func (dr *DocFeeder) Feeds(path string) ([]feeder.Feed, []feeder.UnknownFeed, error) {
+func (dr *DocFeeder) Feeds(path string) ([]feed.Feed, []feed.UnknownFeed, error) {
 	text, err := dr.resource.Read(path)
 	if err != nil {
 		return nil, nil, err

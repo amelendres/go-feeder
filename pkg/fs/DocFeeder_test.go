@@ -24,8 +24,8 @@ var path = map[string]string{
 
 func TestDocFeeder(t *testing.T) {
 
-	fp := LocalFileProvider{}
-	dp := devom.DevotionalParser{}
+	fp := FileProvider{}
+	dp := devom.Parser{}
 	r := NewDocResource(&fp)
 	df := NewDocFeeder(r, &dp)
 
@@ -64,7 +64,7 @@ func TestGDDocFeeder(t *testing.T) {
 	driveService, _ := drive.NewService(ctx, option.WithAPIKey(googleAPIKey))
 
 	fp := cloud.NewGDFileProvider(driveService)
-	dp := devom.DevotionalParser{}
+	dp := devom.Parser{}
 	r := NewDocResource(fp)
 	df := NewDocFeeder(r, &dp)
 

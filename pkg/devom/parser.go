@@ -2,31 +2,33 @@ package devom
 
 import (
 	"errors"
-	"log"
+	feed "github.com/amelendres/go-feeder/pkg"
 	"regexp"
 	"strings"
-
-	feeder "github.com/amelendres/go-feeder/pkg"
 )
 
 var ErrFeedDoesNotHavePassage = errors.New("Feed does not have passage")
 var ErrFeedDoesNotHaveContent = errors.New("Feed does not have content")
 var ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
 
-type DevotionalParser struct{}
+type Parser struct{}
 
-func (dp *DevotionalParser) Parse(txt string) ([]feeder.Feed, []feeder.UnknownFeed) {
-	feeds := []feeder.Feed{}
-	unknownFeeds := []feeder.UnknownFeed{}
+func NewParser() feed.Parser{
+	return &Parser{}
+}
+
+func (dp *Parser) Parse(txt string) ([]feed.Feed, []feed.UnknownFeed) {
+	feeds := []feed.Feed{}
+	unknownFeeds := []feed.UnknownFeed{}
 
 	devs := splitDevotionals(txt)
 	for _, dev := range devs {
-		feed, err := parseDevotional(dev)
+		f, err := parseDevotional(dev)
 		if err != nil {
-			log.Println(err, dev)
-			unknownFeeds = append(unknownFeeds, feeder.UnknownFeed{lines(dev), err.Error()})
+			//log.Println(err, dev)
+			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
 		} else {
-			feeds = append(feeds, feed)
+			feeds = append(feeds, f)
 		}
 	}
 	return feeds, unknownFeeds
@@ -48,7 +50,7 @@ func splitDevotionals(text string) []string {
 	return devs
 }
 
-func parseDevotional(text string) (feeder.Feed, error) {
+func parseDevotional(text string) (feed.Feed, error) {
 	titleIdx := 1
 
 	dev := map[string]string{}
@@ -58,7 +60,7 @@ func parseDevotional(text string) (feeder.Feed, error) {
 	dev["title"] = lines[titleIdx]
 
 	if len(lines) < 4 {
-		return nil, feeder.ErrUnknownFeed
+		return nil, feed.ErrUnknownFeed
 	}
 
 	var bibleReadingIdx int
