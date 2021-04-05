@@ -30,30 +30,23 @@ func NewDestination(planId, publisherId, authorId string) feed.Destination {
 type PlanSender struct {
 	to Destination
 	apiUrl string
-	//to feed.Destination
-	//ApiUrl string
 }
-
-//func NewPlanSender(p Destination, ApiUrl string) feed.Sender{
-//	return &PlanSender{to: p, ApiUrl: ApiUrl}
-//}
 
 func NewPlanSender() feed.Sender{
 	return &PlanSender{}
 }
 
-//func (ps *PlanSender) Destination(info feed.Destination) {
 func (ps *PlanSender) Destination(info feed.Destination) {
 	ps.to = info.(Destination)
 }
 
 func (ps *PlanSender) Send(feeds []feed.Feed) error {
-	ps.apiUrl = fmt.Sprintf("%s/devotionals", os.Getenv("DEVOM_API_URL"))
+	ps.apiUrl = os.Getenv("DEVOM_API_URL")
 
-	for _, feed := range feeds {
-		dev := ps.mapFeed(feed)
+	for _, f := range feeds {
+		dev := ps.mapFeed(f)
 		if err := ps.sendDevotional(dev); err == nil {
-			day, _ := strconv.Atoi(feed[0])
+			day, _ := strconv.Atoi(f[0])
 			err = ps.addDailyDevotional(DailyDevotional{day, dev.Id}, ps.to.PlanId)
 			if err != nil {
 				//log.Print(err)
@@ -80,21 +73,23 @@ func (ps *PlanSender) mapFeed(feed []string) Devotional {
 }
 
 func (ps *PlanSender) sendDevotional(dev Devotional) error {
+	endpoint := fmt.Sprintf("%s/devotionals", ps.apiUrl)
+
 	body, err := json.Marshal(dev)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(ps.apiUrl, "json", bytes.NewBuffer(body))
-	log.Printf("[%s] %s \n", "POST", ps.apiUrl)
+	resp, err := http.Post(endpoint, "json", bytes.NewBuffer(body))
+	log.Printf("[%s] %s \n", "POST", endpoint)
 
 	if err != nil {
-		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", ps.apiUrl, string(body))
+		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", endpoint, string(body))
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("STATUS ERROR: [%s] %s \npayload: %s\n\n reponse: status %d", "POST", ps.apiUrl, string(body), resp.StatusCode)
+	if resp.StatusCode != http.StatusCreated {
+		log.Printf("STATUS ERROR: [%s] %s \npayload: %s\n\n reponse: status %d", "POST", endpoint, string(body), resp.StatusCode)
 		return ErrSendingDevotional
 	}
 
@@ -102,20 +97,22 @@ func (ps *PlanSender) sendDevotional(dev Devotional) error {
 }
 
 func (ps *PlanSender) addDailyDevotional(dev DailyDevotional, planId string) error {
+	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, planId)
+
 	body, err := json.Marshal(dev)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(ps.apiUrl, "json", bytes.NewBuffer(body))
-	log.Printf("[%s] %s \n\n", "POST", ps.apiUrl)
+	resp, err := http.Post(endpoint, "json", bytes.NewBuffer(body))
+	log.Printf("[%s] %s \n\n", "POST", endpoint)
 
 	if err != nil {
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", ps.apiUrl, string(body))
+	if resp.StatusCode != http.StatusCreated {
+		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", endpoint, string(body))
 		return ErrAddingDailyDevotional
 	}
 	return nil

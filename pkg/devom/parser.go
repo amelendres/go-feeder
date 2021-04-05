@@ -94,9 +94,6 @@ func parseDevotional(text string) (feed.Feed, error) {
 		}
 		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
 		dev["content"] = content(lines, contentIdx, len(lines)-1)
-
-		// log.Println(dev["day"], titleIdx, contentIdx, dev["passage.text"], dev["passage.reference"])
-
 	}
 
 	var feed []string

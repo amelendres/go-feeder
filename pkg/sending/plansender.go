@@ -5,8 +5,7 @@ import (
 	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/pkg/errors"
 )
-//var ErrSendingDevotional = errors.New("does not create devotional")
-//var ErrFeedReading = errors.New("Feed reading failed")
+
 var ErrUnknownFeed = errors.New("Unknown feeds")
 
 type PlanSender interface {
@@ -27,16 +26,13 @@ func (ps *service) Send(req SendPlanReq) error {
 
 	feeds, unknownFeeds, err := ps.feeder.Feeds(req.FileUrl)
 	if err != nil {
-		//log.Print(err)
 		return err
 	}
 
 	if len(unknownFeeds) > 0 {
-		//log.Print(feed.ErrUnknownFeed, unknownFeeds)
 		return ErrUnknownFeed
 	}
 
 	return ps.sender.Send(feeds)
-
 }
 

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/amelendres/go-feeder/pkg/feeding"
+	"github.com/amelendres/go-feeder/pkg/sending"
 	"log"
 	"net/http"
 	"os"
@@ -14,8 +16,6 @@ import (
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
-
-const dbFileName = "cart.db.json"
 
 func main() {
 	googleAPIKey := os.Getenv("GOOGLE_API_KEY")
@@ -30,11 +30,15 @@ func main() {
 	}
 
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.Parser{}
+	parser := devom.NewParser()
 	res := fs.NewDocResource(fp)
-	feeder := fs.NewDocFeeder(res, &parser)
+	feeder := fs.NewDocFeeder(res, parser)
+	sender := devom.NewPlanSender()
 
-	ds := server.NewDevServer(feeder)
+	ps := sending.NewPlanSender(sender, feeder)
+	df := feeding.NewDevFeeder(feeder)
+
+	ds := server.NewDevServer(ps, df)
 
 	port := os.Getenv("PORT")
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), ds); err != nil {
