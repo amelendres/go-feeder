@@ -11,7 +11,7 @@ start: ## run cart server
 
 test: ## run tests
 	#@go test ./... -v
-	@go DEVOM_API_URL=http://localhost:8030/api/v1
+	#export DEVOM_API_URL=http://localhost:8030/api/v1
 	#custom pkg tesst
 	#go test ./pkg/fs -run TestDocFeeder -v
 	#go test ./pkg/server -run TestParseDevotionals -v
