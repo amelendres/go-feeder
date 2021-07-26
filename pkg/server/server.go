@@ -2,28 +2,28 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/amelendres/go-feeder/pkg/feeding"
+	"github.com/amelendres/go-feeder/pkg/sending"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"strconv"
-
-	feeder "github.com/amelendres/go-feeder/pkg"
-	"github.com/amelendres/go-feeder/pkg/devom"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 )
 
 // DevServer is a HTTP interface for Cart
 type DevServer struct {
-	feedReader feeder.ReadsFeed
+	planSender sending.PlanSender
+	devFeeder feeding.DevFeeder
 	http.Handler
 }
 
 const jsonContentType = "application/json"
 
 // NewDevServer creates a DevServer with routing configured
-func NewDevServer(feedReader feeder.ReadsFeed) *DevServer {
-	ds := new(DevServer)
-	ds.feedReader = feedReader
+func NewDevServer(
+	ps sending.PlanSender,
+	df feeding.DevFeeder,
+	) *DevServer {
+	ds := &DevServer{planSender: ps, devFeeder: df}
 
 	router := mux.NewRouter()
 	router.Handle("/devotionals/import", http.HandlerFunc(ds.importDevotionalsHandler))
@@ -36,32 +36,14 @@ func NewDevServer(feedReader feeder.ReadsFeed) *DevServer {
 
 func (ds *DevServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
 
-	var importData devom.ImportDailyDevotionals
-	json.NewDecoder(r.Body).Decode(&importData)
+	var req sending.SendPlanReq
+	json.NewDecoder(r.Body).Decode(&req)
 
-	feeds, unknownFeeds, err := ds.feedReader.Feeds(importData.FileUrl)
+	err := ds.planSender.Send(req)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if len(unknownFeeds) > 0 {
-		log.Print(feeder.ErrUnknownFeed, unknownFeeds)
+		log.Print(err)
 		w.WriteHeader(http.StatusConflict)
 		return
-	}
-
-	for _, feed := range feeds {
-		dev := buildDevotional(feed, importData)
-		if err = devom.CreateDevotional(dev); err == nil {
-			day, _ := strconv.Atoi(feed[0])
-			err = devom.AddDailyDevotional(devom.DailyDevotional{day, dev.Id}, importData.PlanId)
-			if err != nil {
-				log.Print(err)
-				w.WriteHeader(http.StatusConflict)
-				return
-			}
-		}
 	}
 
 	w.WriteHeader(http.StatusAccepted)
@@ -69,34 +51,18 @@ func (ds *DevServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Req
 
 func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
 
-	var importData devom.ImportDailyDevotionals
-	json.NewDecoder(r.Body).Decode(&importData)
+	var req feeding.FeedDevReq
+	json.NewDecoder(r.Body).Decode(&req)
 
-	feeds, unknownFeeds, err := ds.feedReader.Feeds(importData.FileUrl)
+	feeds, err := ds.devFeeder.Feeds(req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	w.Header().Set("content-type", jsonContentType)
-	parseFeeds := feeder.ParseFeeds{unknownFeeds, feeds}
-
-	json.NewEncoder(w).Encode(parseFeeds)
+	json.NewEncoder(w).Encode(feeds)
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func buildDevotional(feed []string, importData devom.ImportDailyDevotionals) devom.Devotional {
-
-	return devom.Devotional{
-		uuid.New().String(),
-		feed[1],
-		devom.Passage{feed[2], feed[3]},
-		feed[5],
-		feed[4],
-		nil,
-		importData.AuthorId,
-		importData.PublisherId,
-		nil,
-	}
-}

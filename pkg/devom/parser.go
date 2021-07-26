@@ -2,31 +2,33 @@ package devom
 
 import (
 	"errors"
-	"log"
+	feed "github.com/amelendres/go-feeder/pkg"
 	"regexp"
 	"strings"
-
-	feeder "github.com/amelendres/go-feeder/pkg"
 )
 
 var ErrFeedDoesNotHavePassage = errors.New("Feed does not have passage")
 var ErrFeedDoesNotHaveContent = errors.New("Feed does not have content")
 var ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
 
-type DevotionalParser struct{}
+type Parser struct{}
 
-func (dp *DevotionalParser) Parse(txt string) ([]feeder.Feed, []feeder.UnknownFeed) {
-	feeds := []feeder.Feed{}
-	unknownFeeds := []feeder.UnknownFeed{}
+func NewParser() feed.Parser{
+	return &Parser{}
+}
+
+func (dp *Parser) Parse(txt string) ([]feed.Feed, []feed.UnknownFeed) {
+	feeds := []feed.Feed{}
+	unknownFeeds := []feed.UnknownFeed{}
 
 	devs := splitDevotionals(txt)
 	for _, dev := range devs {
-		feed, err := parseDevotional(dev)
+		f, err := parseDevotional(dev)
 		if err != nil {
-			log.Println(err, dev)
-			unknownFeeds = append(unknownFeeds, feeder.UnknownFeed{lines(dev), err.Error()})
+			//log.Println(err, dev)
+			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
 		} else {
-			feeds = append(feeds, feed)
+			feeds = append(feeds, f)
 		}
 	}
 	return feeds, unknownFeeds
@@ -48,7 +50,7 @@ func splitDevotionals(text string) []string {
 	return devs
 }
 
-func parseDevotional(text string) (feeder.Feed, error) {
+func parseDevotional(text string) (feed.Feed, error) {
 	titleIdx := 1
 
 	dev := map[string]string{}
@@ -58,7 +60,7 @@ func parseDevotional(text string) (feeder.Feed, error) {
 	dev["title"] = lines[titleIdx]
 
 	if len(lines) < 4 {
-		return nil, feeder.ErrUnknownFeed
+		return nil, feed.ErrUnknownFeed
 	}
 
 	var bibleReadingIdx int
@@ -92,9 +94,6 @@ func parseDevotional(text string) (feeder.Feed, error) {
 		}
 		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
 		dev["content"] = content(lines, contentIdx, len(lines)-1)
-
-		// log.Println(dev["day"], titleIdx, contentIdx, dev["passage.text"], dev["passage.reference"])
-
 	}
 
 	var feed []string
@@ -118,10 +117,7 @@ func lines(txt string) []string {
 func content(lines []string, start int, end int) string {
 	content := ""
 	for i := start; i <= end; i++ {
-		// if content != "" {
-		// 	content += "\n"
-		// }
-		content += lines[i]
+		content += lines[i] + "\n\n"
 	}
 
 	return content
@@ -181,11 +177,14 @@ func isPassage(txt string) bool {
 
 func splitPassage(txt string) (text string, reference string, err error) {
 	var passage []string
+	lastPassageChar := regexp.MustCompile(`(”|")(\s*)\(`)
+	occurrences := lastPassageChar.FindAllString(txt, -1)
 
-	lastPassageChar := regexp.MustCompile("”|\"(\\s*)\\(")
+	if len(occurrences) == 0 {
+		return txt, "", ErrFeedDoesNotHaveValidPassage
+	}
 
-	//WIP: passage list
-	if len(lastPassageChar.FindAllString(txt, -1)) > 1 {
+	if len(occurrences) > 1 {
 		return txt, "", nil
 	} else {
 		passage = lastPassageChar.Split(txt, -1)
@@ -193,6 +192,7 @@ func splitPassage(txt string) (text string, reference string, err error) {
 			return passage[0], "", ErrFeedDoesNotHaveValidPassage
 		}
 		passage[0] += `”`
+		passage[1] = `(` + passage[1]
 	}
 
 	return passage[0], passage[1], nil

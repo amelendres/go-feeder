@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
     go:
-        container_name: go-feeder
+        container_name: devom-feeder
         image: appto-go
         build:
             context: .
@@ -13,10 +13,10 @@ services:
             - '8050:5500'
         restart: unless-stopped
         networks:
-            - devom
+            - appto
         env_file:
             - .env
 
 networks:
-    devom:
-        name: devom_net
+    appto:
+        name: appto_net
