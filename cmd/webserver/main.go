@@ -17,8 +17,19 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	googleAPIKey = ""
+	devomAPIUrl  = "http://localhost:8030/api/v1"
+	serverPort   = "5500"
+)
+
 func main() {
-	googleAPIKey := os.Getenv("GOOGLE_API_KEY")
+	var (
+		googleAPIKey = getEnv("GOOGLE_API_KEY", googleAPIKey)
+		devomAPIUrl  = getEnv("DEVOM_API_URL", devomAPIUrl)
+		serverPort   = getEnv("PORT", serverPort)
+	)
+
 	if googleAPIKey == "" {
 		log.Fatal("ERROR: you must provide a Google Api Key")
 	}
@@ -31,16 +42,24 @@ func main() {
 
 	fp := cloud.NewGDFileProvider(driveService)
 	parser := devom.NewDevotionalParser()
-	feeder := devom.NewDevotionalFeeder(fp, parser)
-	sender := devom.NewPlanSender()
+	feeder := devom.NewFeeder(fp, parser)
+	sender := devom.NewPlanSender(devomAPIUrl)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
 
 	ds := server.NewFeederServer(ps, df)
 
-	port := os.Getenv("PORT")
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), ds); err != nil {
-		log.Fatalf("could not listen on port %s %v", port, err)
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", serverPort), ds); err != nil {
+		log.Fatalf("could not listen on port %s %v", serverPort, err)
 	}
+}
+
+// TODO: refactor as an env package
+func getEnv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		value = fallback
+	}
+	return value
 }

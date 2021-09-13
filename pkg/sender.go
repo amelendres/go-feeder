@@ -3,6 +3,5 @@ package feed
 type Destination interface{}
 
 type Sender interface {
-	Send(feeds []Feed) error
-	Destination(info Destination)
+	Send(feeds []Feed, to Destination) error
 }

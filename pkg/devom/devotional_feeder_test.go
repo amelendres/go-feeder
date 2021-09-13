@@ -22,11 +22,11 @@ var path = map[string]string{
 	"drive-2019c": "1SQjizNJdE1QaIpbMB6oMcwHjc8_Lajue",
 }
 
-func TestDevotionalFeeder(t *testing.T) {
+func TestDevotionalFeeder_FS(t *testing.T) {
 
 	fp := fs.FileProvider{}
 	dp := DevotionalParser{}
-	df := NewDevotionalFeeder(&fp, &dp)
+	df := NewFeeder(&fp, &dp)
 
 	t.Run("it reads Feeds with UnknownFeeds from Docx", func(t *testing.T) {
 		feeds, err := df.Feeds(path["feeds-ko"])
@@ -52,7 +52,7 @@ func TestDevotionalFeeder(t *testing.T) {
 	})
 }
 
-func TestGDDocFeeder(t *testing.T) {
+func TestDevotionalFeeder_GD(t *testing.T) {
 	googleAPIKey := os.Getenv("GOOGLE_API_KEY")
 	if googleAPIKey == "" {
 		log.Fatal("ERROR: you must provide a Google Api Key")
@@ -63,7 +63,7 @@ func TestGDDocFeeder(t *testing.T) {
 
 	fp := cloud.NewGDFileProvider(driveService)
 	dp := DevotionalParser{}
-	df := NewDevotionalFeeder(fp, &dp)
+	df := NewFeeder(fp, &dp)
 
 	t.Run("it reads from Google Drive", func(t *testing.T) {
 		feeds, err := df.Feeds(path["drive-2019c"])

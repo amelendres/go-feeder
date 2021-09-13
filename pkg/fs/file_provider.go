@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"io"
 	"os"
 
 	feed "github.com/amelendres/go-feeder/pkg"
@@ -14,7 +15,7 @@ func NewFileProvider() feed.FileProvider {
 	return &FileProvider{}
 }
 
-func (fp *FileProvider) File(path string) (*os.File, error) {
+func (fp *FileProvider) File(path string) (io.Reader, error) {
 	file, err := os.Open(path)
 
 	if err != nil {

@@ -2,11 +2,11 @@ package feed
 
 import (
 	"errors"
-	"os"
+	"io"
 )
 
 var ErrUnknownFile = errors.New("unknown file")
 
 type FileProvider interface {
-	File(path string) (*os.File, error)
+	File(path string) (io.Reader, error)
 }

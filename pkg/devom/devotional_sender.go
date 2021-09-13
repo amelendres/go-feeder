@@ -3,11 +3,9 @@ package devom
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	feed "github.com/amelendres/go-feeder/pkg"
@@ -15,58 +13,48 @@ import (
 )
 
 var (
-	ErrAddingDailyDevotional = errors.New("does not add daily devotional")
-	ErrSendingDevotional     = errors.New("does not create devotional")
+	ErrAddingDailyDevotional = func(want, got int) error {
+		return fmt.Errorf("fails adding daily devotional, unexpected response status, want %d but got %d", want, got)
+	}
+	ErrCreatingDevotional = func(want, got int) error {
+		return fmt.Errorf("fails creating devotional, unexpected response status, want %d but got %d", want, got)
+	}
 )
 
-type Destination struct {
-	PlanId      string
-	PublisherId string
-	AuthorId    string
-}
-
-func NewDestination(planId, publisherId, authorId string) feed.Destination {
-	return Destination{planId, publisherId, authorId}
-}
-
+// TODO: rename to DevotionalSender
 type PlanSender struct {
 	to     Destination
 	apiUrl string
 }
 
-func NewPlanSender() feed.Sender {
-	return &PlanSender{}
+func NewPlanSender(apiUrl string) feed.Sender {
+	return &PlanSender{apiUrl: apiUrl}
 }
 
-func (ps *PlanSender) Destination(info feed.Destination) {
-	ps.to = info.(Destination)
-}
-
-func (ps *PlanSender) Send(feeds []feed.Feed) error {
-	ps.apiUrl = os.Getenv("DEVOM_API_URL")
-
+func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
+	ps.to = to.(Destination)
+	var err error
 	for _, f := range feeds {
 		dev := ps.mapFeed(f)
-		if err := ps.sendDevotional(dev); err == nil {
-			day, _ := strconv.Atoi(f[0])
+		if err = ps.sendDevotional(dev); err == nil {
+			day, _ := strconv.Atoi(f["day"])
 			err = ps.addDailyDevotional(AddDailyDevotionalReq{day, dev.Id}, ps.to.PlanId)
 			if err != nil {
-				//log.Print(err)
 				return err
 			}
 		}
 	}
-	return nil
+	return err
 }
 
-func (ps *PlanSender) mapFeed(feed []string) Devotional {
+func (ps *PlanSender) mapFeed(feed feed.Feed) Devotional {
 
 	return Devotional{
 		uuid.New().String(),
-		feed[1],
-		Passage{feed[2], feed[3]},
-		feed[5],
-		feed[4],
+		feed["title"],
+		Passage{feed["passage_text"], feed["passage_reference"]},
+		feed["content"],
+		feed["bible_reading"],
 		nil,
 		ps.to.AuthorId,
 		ps.to.PublisherId,
@@ -82,40 +70,68 @@ func (ps *PlanSender) sendDevotional(dev Devotional) error {
 		return err
 	}
 
-	resp, err := http.Post(endpoint, "json", bytes.NewBuffer(body))
-	log.Printf("[%s] %s \n", "POST", endpoint)
-
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {
-		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", endpoint, string(body))
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		logRequestError(req, err)
 		return err
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		log.Printf("STATUS ERROR: [%s] %s \npayload: %s\n\n reponse: status %d", "POST", endpoint, string(body), resp.StatusCode)
-		return ErrSendingDevotional
+		err = ErrCreatingDevotional(http.StatusCreated, resp.StatusCode)
+		logRequestResponseError(req, resp, body, err)
+		return err
 	}
-
+	logRequest(req)
 	return nil
 }
 
-func (ps *PlanSender) addDailyDevotional(req AddDailyDevotionalReq, planId string) error {
+func (ps *PlanSender) addDailyDevotional(data AddDailyDevotionalReq, planId string) error {
 	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, planId)
 
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(endpoint, "json", bytes.NewBuffer(body))
-	log.Printf("[%s] %s \n\n", "POST", endpoint)
-
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		logRequestError(req, err)
 		return err
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		log.Printf("ERROR: [%s] %s \npayload: %s\n\n", "POST", endpoint, string(body))
-		return ErrAddingDailyDevotional
+		err = ErrAddingDailyDevotional(http.StatusCreated, resp.StatusCode)
+		logRequestResponseError(req, resp, body, err)
+		return err
 	}
+	logRequest(req)
 	return nil
+}
+
+func logRequestError(req *http.Request, err error) {
+	log.Printf("%s\nrequest: [%s] %s \n", err.Error(), req.Method, req.URL)
+}
+
+func logRequest(req *http.Request) {
+	log.Printf("[%s] %s \n", req.Method, req.URL)
+}
+
+func logRequestResponseError(req *http.Request, resp *http.Response, body []byte, err error) {
+	log.Printf(
+		"[%s] 😱 %s \n%s\npayload: %s\nreponse status: %d",
+		req.Method,
+		req.URL,
+		err.Error(),
+		string(body),
+		resp.StatusCode)
 }

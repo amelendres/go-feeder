@@ -26,17 +26,17 @@ func NewFeederServer(
 	ds := &FeederServer{sender: ss, feeder: fs}
 
 	router := mux.NewRouter()
-	router.Handle("/devotionals/import", http.HandlerFunc(ds.importDevotionalsHandler))
-	router.Handle("/devotionals/parse", http.HandlerFunc(ds.parseDevotionalsHandler))
+	router.Handle("/feeds/import", http.HandlerFunc(ds.importFeedHandler))
+	router.Handle("/feeds/parse", http.HandlerFunc(ds.parseFeedHandler))
 
 	ds.Handler = router
 
 	return ds
 }
 
-func (ds *FeederServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
+func (ds *FeederServer) importFeedHandler(w http.ResponseWriter, r *http.Request) {
 
-	var req sending.SendPlanReq
+	var req sending.SendReq
 	json.NewDecoder(r.Body).Decode(&req)
 
 	err := ds.sender.Send(req)
@@ -49,7 +49,7 @@ func (ds *FeederServer) importDevotionalsHandler(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (ds *FeederServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
+func (ds *FeederServer) parseFeedHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req feeding.FeedReq
 	json.NewDecoder(r.Body).Decode(&req)

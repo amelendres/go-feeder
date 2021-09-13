@@ -15,8 +15,8 @@ var (
 	ErrFeedDoesNotHavePassage      = errors.New("Feed does not have passage")
 	ErrFeedDoesNotHaveContent      = errors.New("Feed does not have content")
 	ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
-	ErrReadingResource             = func(r io.Reader, err error) error {
-		return errors.New("fails read resource <{planId} : {day}> not found")
+	ErrReadingResource             = func(err error) error {
+		return fmt.Errorf("Error reading document: %w", err)
 	}
 )
 
@@ -33,8 +33,7 @@ func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 	txt, err := dp.read(r)
 	if err != nil {
 		// log.Println(fmt.Errorf("Error reading resource: %s, %v ", r, err))
-		// return "", fmt.Errorf("Error reading document: %s, %v ", "r.Name()", err)
-		return &feed.ParseFeeds{unknownFeeds, feeds}, ErrReadingResource(r, err)
+		return &feed.ParseFeeds{unknownFeeds, feeds}, err
 	}
 
 	devs := splitDevotionals(txt)
@@ -55,8 +54,7 @@ func (dp *DevotionalParser) read(r io.Reader) (string, error) {
 	content, _, err := docconv.ConvertDoc(r)
 
 	if err != nil {
-		//log.Println(feed.ErrReadingFile, err)
-		return "", fmt.Errorf("Error reading document: %s, %v ", "r.Name()", err)
+		return "", ErrReadingResource(err)
 	}
 
 	return content, nil
@@ -80,10 +78,9 @@ func splitDevotionals(text string) []string {
 
 func parseDevotional(text string) (feed.Feed, error) {
 	titleIdx := 1
-
-	dev := map[string]string{}
-
 	lines := lines(text)
+
+	dev := make(map[string]string)
 	dev["day"] = lines[0]
 	dev["title"] = lines[titleIdx]
 
@@ -92,7 +89,7 @@ func parseDevotional(text string) (feed.Feed, error) {
 	}
 
 	var bibleReadingIdx int
-	dev["bibleReading"], bibleReadingIdx = bibleReading(lines)
+	dev["bible_reading"], bibleReadingIdx = bibleReading(lines)
 
 	if bibleReadingIdx == titleIdx+1 {
 		return nil, ErrFeedDoesNotHavePassage
@@ -103,7 +100,7 @@ func parseDevotional(text string) (feed.Feed, error) {
 		if err != nil {
 			return nil, err
 		}
-		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
+		dev["passage_text"], dev["passage_reference"] = passage.Text, passage.Reference
 		dev["content"] = content(lines, bibleReadingIdx+1, len(lines)-1)
 
 	} else {
@@ -120,20 +117,11 @@ func parseDevotional(text string) (feed.Feed, error) {
 		if err != nil {
 			return nil, err
 		}
-		dev["passage.text"], dev["passage.reference"] = passage.Text, passage.Reference
+		dev["passage_text"], dev["passage_reference"] = passage.Text, passage.Reference
 		dev["content"] = content(lines, contentIdx, len(lines)-1)
 	}
 
-	var feed []string
-	feed = append(feed,
-		dev["day"],
-		dev["title"],
-		dev["passage.text"],
-		dev["passage.reference"],
-		dev["bibleReading"],
-		dev["content"])
-
-	return feed, nil
+	return dev, nil
 }
 
 func lines(txt string) []string {
