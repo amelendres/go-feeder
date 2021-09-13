@@ -2,28 +2,28 @@ package server
 
 import (
 	"encoding/json"
+	"log"
+	"net/http"
+
 	"github.com/amelendres/go-feeder/pkg/feeding"
 	"github.com/amelendres/go-feeder/pkg/sending"
 	"github.com/gorilla/mux"
-	"log"
-	"net/http"
 )
 
-// DevServer is a HTTP interface for Cart
-type DevServer struct {
-	planSender sending.PlanSender
-	devFeeder feeding.DevFeeder
+type FeederServer struct {
+	sender sending.Service
+	feeder feeding.Service
 	http.Handler
 }
 
 const jsonContentType = "application/json"
 
-// NewDevServer creates a DevServer with routing configured
-func NewDevServer(
-	ps sending.PlanSender,
-	df feeding.DevFeeder,
-	) *DevServer {
-	ds := &DevServer{planSender: ps, devFeeder: df}
+// NewFeederServer creates a DevServer with routing configured
+func NewFeederServer(
+	ss sending.Service,
+	fs feeding.Service,
+) *FeederServer {
+	ds := &FeederServer{sender: ss, feeder: fs}
 
 	router := mux.NewRouter()
 	router.Handle("/devotionals/import", http.HandlerFunc(ds.importDevotionalsHandler))
@@ -34,12 +34,12 @@ func NewDevServer(
 	return ds
 }
 
-func (ds *DevServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
+func (ds *FeederServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req sending.SendPlanReq
 	json.NewDecoder(r.Body).Decode(&req)
 
-	err := ds.planSender.Send(req)
+	err := ds.sender.Send(req)
 	if err != nil {
 		log.Print(err)
 		w.WriteHeader(http.StatusConflict)
@@ -49,12 +49,12 @@ func (ds *DevServer) importDevotionalsHandler(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
+func (ds *FeederServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Request) {
 
-	var req feeding.FeedDevReq
+	var req feeding.FeedReq
 	json.NewDecoder(r.Body).Decode(&req)
 
-	feeds, err := ds.devFeeder.Feeds(req)
+	feeds, err := ds.feeder.Feeds(req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -65,4 +65,3 @@ func (ds *DevServer) parseDevotionalsHandler(w http.ResponseWriter, r *http.Requ
 
 	w.WriteHeader(http.StatusOK)
 }
-

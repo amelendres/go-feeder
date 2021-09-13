@@ -2,24 +2,40 @@ package devom
 
 import (
 	"errors"
-	feed "github.com/amelendres/go-feeder/pkg"
+	"fmt"
+	"io"
 	"regexp"
 	"strings"
+
+	"code.sajari.com/docconv"
+	feed "github.com/amelendres/go-feeder/pkg"
 )
 
-var ErrFeedDoesNotHavePassage = errors.New("Feed does not have passage")
-var ErrFeedDoesNotHaveContent = errors.New("Feed does not have content")
-var ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
+var (
+	ErrFeedDoesNotHavePassage      = errors.New("Feed does not have passage")
+	ErrFeedDoesNotHaveContent      = errors.New("Feed does not have content")
+	ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
+	ErrReadingResource             = func(r io.Reader, err error) error {
+		return errors.New("fails read resource <{planId} : {day}> not found")
+	}
+)
 
-type Parser struct{}
+type DevotionalParser struct{}
 
-func NewParser() feed.Parser{
-	return &Parser{}
+func NewDevotionalParser() feed.Parser {
+	return &DevotionalParser{}
 }
 
-func (dp *Parser) Parse(txt string) ([]feed.Feed, []feed.UnknownFeed) {
+func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 	feeds := []feed.Feed{}
 	unknownFeeds := []feed.UnknownFeed{}
+
+	txt, err := dp.read(r)
+	if err != nil {
+		// log.Println(fmt.Errorf("Error reading resource: %s, %v ", r, err))
+		// return "", fmt.Errorf("Error reading document: %s, %v ", "r.Name()", err)
+		return &feed.ParseFeeds{unknownFeeds, feeds}, ErrReadingResource(r, err)
+	}
 
 	devs := splitDevotionals(txt)
 	for _, dev := range devs {
@@ -31,7 +47,19 @@ func (dp *Parser) Parse(txt string) ([]feed.Feed, []feed.UnknownFeed) {
 			feeds = append(feeds, f)
 		}
 	}
-	return feeds, unknownFeeds
+	return &feed.ParseFeeds{unknownFeeds, feeds}, nil
+}
+
+func (dp *DevotionalParser) read(r io.Reader) (string, error) {
+
+	content, _, err := docconv.ConvertDoc(r)
+
+	if err != nil {
+		//log.Println(feed.ErrReadingFile, err)
+		return "", fmt.Errorf("Error reading document: %s, %v ", "r.Name()", err)
+	}
+
+	return content, nil
 }
 
 func splitDevotionals(text string) []string {

@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/amelendres/go-feeder/pkg/feeding"
-	"github.com/amelendres/go-feeder/pkg/sending"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/amelendres/go-feeder/pkg/feeding"
+	"github.com/amelendres/go-feeder/pkg/sending"
+
 	"github.com/amelendres/go-feeder/pkg/cloud"
 	"github.com/amelendres/go-feeder/pkg/devom"
-	"github.com/amelendres/go-feeder/pkg/fs"
 	"github.com/amelendres/go-feeder/pkg/server"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -30,15 +30,14 @@ func main() {
 	}
 
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.NewParser()
-	res := fs.NewDocResource(fp)
-	feeder := fs.NewDocFeeder(res, parser)
+	parser := devom.NewDevotionalParser()
+	feeder := devom.NewDevotionalFeeder(fp, parser)
 	sender := devom.NewPlanSender()
 
-	ps := sending.NewPlanSender(sender, feeder)
-	df := feeding.NewDevFeeder(feeder)
+	ps := sending.NewService(sender, feeder)
+	df := feeding.NewService(feeder)
 
-	ds := server.NewDevServer(ps, df)
+	ds := server.NewFeederServer(ps, df)
 
 	port := os.Getenv("PORT")
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), ds); err != nil {

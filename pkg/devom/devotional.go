@@ -17,7 +17,6 @@ type Passage struct {
 	Reference string `json:"reference"`
 }
 
-
 func NewPassage(text, reference string) Passage {
 	return Passage{text, reference}
 }

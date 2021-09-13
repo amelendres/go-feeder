@@ -5,6 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
 	"github.com/amelendres/go-feeder/pkg/cloud"
 	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/amelendres/go-feeder/pkg/feeding"
@@ -13,23 +20,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
-	"io"
-	"log"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"testing"
 
 	feeder "github.com/amelendres/go-feeder/pkg"
 	"github.com/google/uuid"
 )
 
 var path = map[string]string{
-	"feeds-ok":    "../fs/_test_feeds-ok.docx",
-	"feeds-ko":    "../fs/_test_feeds-ko.docx",
-	"feeds-2019a": "../fs/_test_feeds-2019a.docx",
-	"feeds-2019b": "../fs/_test_feeds-2019b.docx",
-	"no-file":     "../fs/_test_not-exist-file.docx",
+	"feeds-ok":    "../devom/_test_feeds-ok.docx",
+	"feeds-ko":    "../devom/_test_feeds-ko.docx",
+	"no-file":     "../devom/_test_not-exist-file.docx",
 	"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
 }
 
@@ -40,24 +39,23 @@ var planIds = map[int]string{
 	2022: "does-not-exists-this-yearly-plan-...",
 }
 var payload = sending.SendPlanReq{
-	planIds[2021],
-	uuid.New().String(),
-	uuid.New().String(),
-	"",
+	PlanId:      planIds[2021],
+	AuthorId:    uuid.New().String(),
+	PublisherId: uuid.New().String(),
+	FileUrl:     "",
 }
 
-func TestImportDevotionals(t *testing.T) {
+func TestServer_ImportDevotionals(t *testing.T) {
 
 	fp := fs.NewFileProvider()
-	parser := devom.NewParser()
-	res := fs.NewDocResource(fp)
-	feeder := fs.NewDocFeeder(res, parser)
+	parser := devom.NewDevotionalParser()
+	feeder := devom.NewDevotionalFeeder(fp, parser)
 	sender := devom.NewPlanSender()
 
-	ps := sending.NewPlanSender(sender, feeder)
-	df := feeding.NewDevFeeder(feeder)
+	ps := sending.NewService(sender, feeder)
+	df := feeding.NewService(feeder)
 
-	ds := NewDevServer(ps, df)
+	ds := NewFeederServer(ps, df)
 
 	t.Run("Unknown feeds", func(t *testing.T) {
 		payload.FileUrl = path["feeds-ko"]
@@ -85,18 +83,17 @@ func TestImportDevotionals(t *testing.T) {
 	})
 }
 
-func TestParseDevotionals(t *testing.T) {
+func TestServer_ParseDevotionals(t *testing.T) {
 
 	fp := fs.NewFileProvider()
-	parser := devom.NewParser()
-	res := fs.NewDocResource(fp)
-	feeder := fs.NewDocFeeder(res, parser)
+	parser := devom.NewDevotionalParser()
+	feeder := devom.NewDevotionalFeeder(fp, parser)
 	sender := devom.NewPlanSender()
 
-	ps := sending.NewPlanSender(sender, feeder)
-	df := feeding.NewDevFeeder(feeder)
+	ps := sending.NewService(sender, feeder)
+	df := feeding.NewService(feeder)
 
-	ds := NewDevServer(ps, df)
+	ds := NewFeederServer(ps, df)
 
 	t.Run("A valid devotional feeds", func(t *testing.T) {
 		payload.FileUrl = path["feeds-ok"]
@@ -133,7 +130,7 @@ func TestParseDevotionals(t *testing.T) {
 	})
 }
 
-func TestGParseDevotionals(t *testing.T) {
+func TestServer_ParseDevotionals_FromGoogleDrive(t *testing.T) {
 
 	googleAPIKey := os.Getenv("GOOGLE_API_KEY")
 	if googleAPIKey == "" {
@@ -143,15 +140,14 @@ func TestGParseDevotionals(t *testing.T) {
 	driveService, _ := drive.NewService(ctx, option.WithAPIKey(googleAPIKey))
 
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.NewParser()
-	res := fs.NewDocResource(fp)
-	feeder := fs.NewDocFeeder(res, parser)
+	parser := devom.NewDevotionalParser()
+	feeder := devom.NewDevotionalFeeder(fp, parser)
 	sender := devom.NewPlanSender()
 
-	ps := sending.NewPlanSender(sender, feeder)
-	df := feeding.NewDevFeeder(feeder)
+	ps := sending.NewService(sender, feeder)
+	df := feeding.NewService(feeder)
 
-	ds := NewDevServer(ps, df)
+	ds := NewFeederServer(ps, df)
 
 	t.Run("it parses from Google Drive File on POST", func(t *testing.T) {
 		payload.FileUrl = path["drive-2019a"]
@@ -195,7 +191,6 @@ func getParseFeedsFromResponse(t *testing.T, body io.Reader) feeder.ParseFeeds {
 
 	return parsedFeeds
 }
-
 
 func newParseFeedsFromJSON(rdr io.Reader) (feeder.ParseFeeds, error) {
 	var parseFeeds feeder.ParseFeeds

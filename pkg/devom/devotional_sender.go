@@ -5,16 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	feed "github.com/amelendres/go-feeder/pkg"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+
+	feed "github.com/amelendres/go-feeder/pkg"
+	"github.com/google/uuid"
 )
+
 var (
 	ErrAddingDailyDevotional = errors.New("does not add daily devotional")
-	ErrSendingDevotional = errors.New("does not create devotional")
+	ErrSendingDevotional     = errors.New("does not create devotional")
 )
 
 type Destination struct {
@@ -28,11 +30,11 @@ func NewDestination(planId, publisherId, authorId string) feed.Destination {
 }
 
 type PlanSender struct {
-	to Destination
+	to     Destination
 	apiUrl string
 }
 
-func NewPlanSender() feed.Sender{
+func NewPlanSender() feed.Sender {
 	return &PlanSender{}
 }
 
@@ -47,7 +49,7 @@ func (ps *PlanSender) Send(feeds []feed.Feed) error {
 		dev := ps.mapFeed(f)
 		if err := ps.sendDevotional(dev); err == nil {
 			day, _ := strconv.Atoi(f[0])
-			err = ps.addDailyDevotional(DailyDevotional{day, dev.Id}, ps.to.PlanId)
+			err = ps.addDailyDevotional(AddDailyDevotionalReq{day, dev.Id}, ps.to.PlanId)
 			if err != nil {
 				//log.Print(err)
 				return err
@@ -96,10 +98,10 @@ func (ps *PlanSender) sendDevotional(dev Devotional) error {
 	return nil
 }
 
-func (ps *PlanSender) addDailyDevotional(dev DailyDevotional, planId string) error {
+func (ps *PlanSender) addDailyDevotional(req AddDailyDevotionalReq, planId string) error {
 	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, planId)
 
-	body, err := json.Marshal(dev)
+	body, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-package fs
+package devom
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/amelendres/go-feeder/pkg/cloud"
-	"github.com/amelendres/go-feeder/pkg/devom"
+	"github.com/amelendres/go-feeder/pkg/fs"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -22,35 +22,33 @@ var path = map[string]string{
 	"drive-2019c": "1SQjizNJdE1QaIpbMB6oMcwHjc8_Lajue",
 }
 
-func TestDocFeeder(t *testing.T) {
+func TestDevotionalFeeder(t *testing.T) {
 
-	fp := FileProvider{}
-	dp := devom.Parser{}
-	r := NewDocResource(&fp)
-	df := NewDocFeeder(r, &dp)
+	fp := fs.FileProvider{}
+	dp := DevotionalParser{}
+	df := NewDevotionalFeeder(&fp, &dp)
 
 	t.Run("it reads Feeds with UnknownFeeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-ko"])
+		feeds, err := df.Feeds(path["feeds-ko"])
 
-		assert.Empty(t, err)
-		assert.Equal(t, 5, len(feeds))
-		assert.Equal(t, 5, len(unknownFeeds))
+		assert.Nil(t, err)
+		assert.Equal(t, 5, len(feeds.Feeds))
+		assert.Equal(t, 5, len(feeds.UnknownFeeds))
 	})
 
 	t.Run("it fails read feeds without resource file", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["no-file"])
+		feeds, err := df.Feeds(path["no-file"])
 
 		assert.NotNil(t, err)
-		assert.Equal(t, 0, len(feeds))
-		assert.Equal(t, 0, len(unknownFeeds))
+		assert.Nil(t, feeds)
 	})
 
 	t.Run("it reads Feeds from Docx", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["feeds-ok"])
+		feeds, err := df.Feeds(path["feeds-ok"])
 
 		assert.Empty(t, err)
-		assert.Empty(t, unknownFeeds)
-		assert.Equal(t, 14, len(feeds))
+		assert.Empty(t, feeds.UnknownFeeds)
+		assert.Equal(t, 14, len(feeds.Feeds))
 	})
 }
 
@@ -64,15 +62,14 @@ func TestGDDocFeeder(t *testing.T) {
 	driveService, _ := drive.NewService(ctx, option.WithAPIKey(googleAPIKey))
 
 	fp := cloud.NewGDFileProvider(driveService)
-	dp := devom.Parser{}
-	r := NewDocResource(fp)
-	df := NewDocFeeder(r, &dp)
+	dp := DevotionalParser{}
+	df := NewDevotionalFeeder(fp, &dp)
 
 	t.Run("it reads from Google Drive", func(t *testing.T) {
-		feeds, unknownFeeds, err := df.Feeds(path["drive-2019c"])
+		feeds, err := df.Feeds(path["drive-2019c"])
 
 		assert.Nil(t, err)
-		assert.Equal(t, 100, len(feeds))
-		assert.Equal(t, 0, len(unknownFeeds))
+		assert.Equal(t, 100, len(feeds.Feeds))
+		assert.Equal(t, 0, len(feeds.UnknownFeeds))
 	})
 }

@@ -1,11 +1,12 @@
 package cloud
 
 import (
-	feed "github.com/amelendres/go-feeder/pkg"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+
+	feed "github.com/amelendres/go-feeder/pkg"
 
 	"google.golang.org/api/drive/v3"
 )
