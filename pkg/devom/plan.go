@@ -6,12 +6,8 @@ type DailyDevotional struct {
 }
 
 type YearlyPlan struct {
-	Id       string `json:"id"`
-	Year     int    `json:"year"`
-	AuthorId string `json:"authorId"`
-}
-
-type AddDailyDevotionalReq struct {
-	Day          int    `json:"day"`
-	DevotionalId string `json:"devotionalId"`
+	Id               string `json:"id"`
+	TopicId          string `json:"topicId"`
+	AuthorId         string `json:"authorId"`
+	DailyDevotionals map[string]*DailyDevotional
 }

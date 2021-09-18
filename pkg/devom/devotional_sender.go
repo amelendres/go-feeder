@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -35,8 +34,8 @@ func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
 	ps.to = to.(Destination)
 	var err error
 	for _, f := range feeds {
-		dev := ps.mapFeed(f)
-		if err = ps.sendDevotional(dev); err == nil {
+		dev := ps.mapItem(f)
+		if err = ps.createDevotional(dev); err == nil {
 			day, _ := strconv.Atoi(f["day"])
 			err = ps.addDailyDevotional(AddDailyDevotionalReq{day, dev.Id}, ps.to.PlanId)
 			if err != nil {
@@ -47,7 +46,7 @@ func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
 	return err
 }
 
-func (ps *PlanSender) mapFeed(feed feed.Feed) Devotional {
+func (ps *PlanSender) mapItem(feed feed.Feed) Devotional {
 
 	return Devotional{
 		uuid.New().String(),
@@ -62,7 +61,7 @@ func (ps *PlanSender) mapFeed(feed feed.Feed) Devotional {
 	}
 }
 
-func (ps *PlanSender) sendDevotional(dev Devotional) error {
+func (ps *PlanSender) createDevotional(dev Devotional) error {
 	endpoint := fmt.Sprintf("%s/devotionals", ps.apiUrl)
 
 	body, err := json.Marshal(dev)
@@ -116,22 +115,4 @@ func (ps *PlanSender) addDailyDevotional(data AddDailyDevotionalReq, planId stri
 	}
 	logRequest(req)
 	return nil
-}
-
-func logRequestError(req *http.Request, err error) {
-	log.Printf("%s\nrequest: [%s] %s \n", err.Error(), req.Method, req.URL)
-}
-
-func logRequest(req *http.Request) {
-	log.Printf("[%s] %s \n", req.Method, req.URL)
-}
-
-func logRequestResponseError(req *http.Request, resp *http.Response, body []byte, err error) {
-	log.Printf(
-		"[%s] 😱 %s \n%s\npayload: %s\nreponse status: %d",
-		req.Method,
-		req.URL,
-		err.Error(),
-		string(body),
-		resp.StatusCode)
 }

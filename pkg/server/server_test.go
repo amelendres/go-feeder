@@ -22,15 +22,19 @@ import (
 	"google.golang.org/api/option"
 
 	feeder "github.com/amelendres/go-feeder/pkg"
-	"github.com/google/uuid"
 )
 
 var (
-	path = map[string]string{
-		"feeds-ok":    "../devom/_test_feeds-ok.docx",
-		"feeds-ko":    "../devom/_test_feeds-ko.docx",
-		"no-file":     "../devom/_test_not-exist-file.docx",
-		"drive-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
+	devomAPIUrl = os.Getenv("DEVOM_API_URL")
+
+	feedSource = map[string]string{
+		"dev-ok":          "../devom/_test_feeds-ok.docx",
+		"dev-ko":          "../devom/_test_feeds-ko.docx",
+		"no-file":         "../devom/_test_not-exists-file",
+		"drive-dev-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
+		"topics-ok":       "../devom/_test_topics-ok.xlsx",
+		"topics-ko":       "../devom/_test_topics-ko.xlsx",
+		"drive-topics-ok": "1kWN7HHNrlytOyApwUlnA0SXc-WBsbuiA",
 	}
 
 	planIds = map[int]string{
@@ -41,8 +45,8 @@ var (
 	}
 	payload = sending.SendReq{
 		PlanId:      planIds[2021],
-		AuthorId:    uuid.New().String(),
-		PublisherId: uuid.New().String(),
+		AuthorId:    "eeef78ed-043e-40db-9eae-8a0d77950ceb",
+		PublisherId: "e5f12936-1339-4dbc-b339-fb0ba42b13a9",
 		FileUrl:     "",
 	}
 )
@@ -50,7 +54,6 @@ var (
 // TODO: mock DEVOM server
 func TestServer_ImportDevotionals(t *testing.T) {
 
-	devomAPIUrl := os.Getenv("DEVOM_API_URL")
 	fp := fs.NewFileProvider()
 	parser := devom.NewDevotionalParser()
 	feeder := devom.NewFeeder(fp, parser)
@@ -62,7 +65,7 @@ func TestServer_ImportDevotionals(t *testing.T) {
 	ds := NewFeederServer(ps, df)
 
 	t.Run("Unknown feeds", func(t *testing.T) {
-		payload.FileUrl = path["feeds-ko"]
+		payload.FileUrl = feedSource["dev-ko"]
 
 		response := httptest.NewRecorder()
 		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
@@ -71,7 +74,7 @@ func TestServer_ImportDevotionals(t *testing.T) {
 
 	t.Run("Non existing resource file", func(t *testing.T) {
 		payload.PlanId = planIds[2019]
-		payload.FileUrl = path["no-file"]
+		payload.FileUrl = feedSource["no-file"]
 
 		response := httptest.NewRecorder()
 		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
@@ -79,7 +82,45 @@ func TestServer_ImportDevotionals(t *testing.T) {
 	})
 
 	t.Run("A new devotional feeds", func(t *testing.T) {
-		payload.FileUrl = path["feeds-ok"]
+		payload.FileUrl = feedSource["dev-ok"]
+
+		response := httptest.NewRecorder()
+		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
+		assert.Equal(t, http.StatusAccepted, response.Code)
+	})
+}
+
+func TestServer_ImportTopics(t *testing.T) {
+
+	fp := fs.NewFileProvider()
+	parser := devom.NewTopicParser()
+	feeder := devom.NewFeeder(fp, parser)
+	sender := devom.NewTopicSender(devomAPIUrl)
+
+	ps := sending.NewService(sender, feeder)
+	df := feeding.NewService(feeder)
+
+	ds := NewFeederServer(ps, df)
+
+	t.Run("Unknown items", func(t *testing.T) {
+		payload.FileUrl = feedSource["topics-ko"]
+
+		response := httptest.NewRecorder()
+		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
+		assert.Equal(t, http.StatusConflict, response.Code)
+	})
+
+	t.Run("Non existing resource file", func(t *testing.T) {
+		payload.PlanId = planIds[2019]
+		payload.FileUrl = feedSource["no-file"]
+
+		response := httptest.NewRecorder()
+		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
+		assert.Equal(t, http.StatusConflict, response.Code)
+	})
+
+	t.Run("Valid feed items", func(t *testing.T) {
+		payload.FileUrl = feedSource["topics-ok"]
 
 		response := httptest.NewRecorder()
 		ds.ServeHTTP(response, newPostImportFeedRequest(payload))
@@ -100,7 +141,7 @@ func TestServer_ParseDevotionals(t *testing.T) {
 	ds := NewFeederServer(ps, df)
 
 	t.Run("A valid devotional feeds", func(t *testing.T) {
-		payload.FileUrl = path["feeds-ok"]
+		payload.FileUrl = feedSource["dev-ok"]
 
 		response := httptest.NewRecorder()
 
@@ -113,7 +154,7 @@ func TestServer_ParseDevotionals(t *testing.T) {
 	})
 
 	t.Run("With unknown devotional feeds", func(t *testing.T) {
-		payload.FileUrl = path["feeds-ko"]
+		payload.FileUrl = feedSource["dev-ko"]
 		response := httptest.NewRecorder()
 
 		ds.ServeHTTP(response, newPostParseFeedRequest(payload))
@@ -125,7 +166,7 @@ func TestServer_ParseDevotionals(t *testing.T) {
 	})
 
 	t.Run("A non existing resource file", func(t *testing.T) {
-		payload.FileUrl = path["no-file"]
+		payload.FileUrl = feedSource["no-file"]
 		response := httptest.NewRecorder()
 
 		ds.ServeHTTP(response, newPostParseFeedRequest(payload))
@@ -154,7 +195,7 @@ func TestServer_ParseDevotionals_FromGoogleDrive(t *testing.T) {
 	ds := NewFeederServer(ps, df)
 
 	t.Run("it parses from Google Drive File on POST", func(t *testing.T) {
-		payload.FileUrl = path["drive-2019a"]
+		payload.FileUrl = feedSource["drive-dev-2019a"]
 
 		response := httptest.NewRecorder()
 
