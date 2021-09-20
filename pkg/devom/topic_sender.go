@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	feed "github.com/amelendres/go-feeder/pkg"
 	"github.com/google/uuid"
@@ -16,14 +17,17 @@ import (
 
 var (
 	ErrImportingTopics = errors.New("fails importing topics")
-	ErrGettingPlans    = func(want, got int) error {
-		return fmt.Errorf("fails getting plans, unexpected response status, want %d but got %d", want, got)
+	ErrGettingResource = func(want, got int) error {
+		return fmt.Errorf("fails getting resource, unexpected response status, want %d but got %d", want, got)
 	}
-	ErrCreatingTopic = func(want, got int) error {
-		return fmt.Errorf("fails creating topic, unexpected response status, want %d but got %d", want, got)
+	ErrCreatingResource = func(want, got int) error {
+		return fmt.Errorf("fails creating resource, unexpected response status, want %d but got %d", want, got)
 	}
 	ErrYearlyPlanNotFound = func(year int) error {
 		return fmt.Errorf("Plan <%d> not found", year)
+	}
+	ErrTopicPlanNotFound = func(topicId string) error {
+		return fmt.Errorf("Plan <%s> not found", topicId)
 	}
 	ErrDailyDevotionalNotFound = func(planId string, day int) error {
 		return fmt.Errorf("Daily Devotional not found <%s : %d> not found", planId, day)
@@ -31,10 +35,10 @@ var (
 )
 
 type TopicSender struct {
-	apiUrl      string
-	to          Destination
-	yearlyPlans map[string]*YearlyPlan
-	topics      map[string]*Topic
+	apiUrl string
+	to     Destination
+	plans  map[string]*Plan
+	topics map[string]*Topic
 }
 
 func NewTopicSender(apiUrl string) feed.Sender {
@@ -43,17 +47,39 @@ func NewTopicSender(apiUrl string) feed.Sender {
 
 func (ts *TopicSender) Send(items []feed.Feed, to feed.Destination) error {
 	ts.to = to.(Destination)
+	if err := ts.refreshCache(ts.to.AuthorId); err != nil {
+		log.Fatal(err)
+		return nil
+	}
+
 	var errors []error
 	for _, item := range items {
 		topic := ts.mapItem(item)
 		if err := ts.createTopic(*topic); err != nil {
-			log.Print(err)
+			// log.Println(err)
+			log.Fatal(err)
 			errors = append(errors, err)
 			continue
 		}
-		err := ts.addTopic(*topic, item["devotionals"])
+		err := ts.addTopicToDevotionals(*topic, item["devotionals"])
 		if err != nil {
+			log.Fatal(err)
 			errors = append(errors, err)
+			continue
+		}
+
+		topicPlan, err := ts.createTopicPlan(*topic)
+		if err != nil {
+			log.Fatal(err)
+			// log.Println(err)
+			errors = append(errors, err)
+			continue
+		}
+		err = ts.addDailyDevotionals(*topicPlan, item["devotionals"])
+		if err != nil {
+			log.Fatal(err)
+			errors = append(errors, err)
+			continue
 		}
 	}
 
@@ -65,33 +91,64 @@ func (ts *TopicSender) Send(items []feed.Feed, to feed.Destination) error {
 
 func (ts *TopicSender) createTopic(topic Topic) error {
 	endpoint := fmt.Sprintf("%s/categories", ts.apiUrl)
-
-	body, err := json.Marshal(topic)
+	_, err := post(endpoint, topic)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
+	ts.topics[topic.Title] = &topic
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logRequestError(req, err)
-		return err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		err = ErrCreatingTopic(http.StatusCreated, resp.StatusCode)
-		logRequestResponseError(req, resp, body, err)
-		return err
-	}
-	logRequest(req)
 	return nil
 }
 
-func (ts *TopicSender) addTopic(topic Topic, yearlyDevotionalsJSON string) error {
+func (ts *TopicSender) createTopicPlan(topic Topic) (*Plan, error) {
+	endpoint := fmt.Sprintf("%s/yearly-plans", ts.apiUrl)
+	plan := &Plan{
+		Id:          uuid.New().String(),
+		Title:       topic.Title,
+		Description: "Plan importado",
+		TopicId:     topic.Id,
+		AuthorId:    ts.to.AuthorId,
+		PublisherId: ts.to.PublisherId,
+	}
+	_, err := post(endpoint, plan)
+	if err != nil {
+		return nil, err
+	}
+	ts.plans[plan.TopicId] = plan
+
+	return plan, nil
+}
+
+func (ts *TopicSender) addDailyDevotionals(plan Plan, yearlyDevotionalsJSON string) error {
+
+	yealyDevotionals := mapYearlyDevotionalsFromJSON(yearlyDevotionalsJSON)
+	var err error
+	for _, dev := range yealyDevotionals {
+		yearlyPlan := ts.yearlyPlan(GetYearlyPlanReq{Year: dev.Year, AuthorId: ts.to.AuthorId})
+		if yearlyPlan == nil {
+			err = ErrYearlyPlanNotFound(dev.Year)
+			log.Println(err)
+			continue
+		}
+
+		dd := ts.dailyDevotional(GetPlanDevotionalReq{TopicId: yearlyPlan.TopicId, Day: dev.Day})
+		if dd == nil {
+			err = ErrDailyDevotionalNotFound(plan.Id, dev.Day)
+			log.Println(err)
+			continue
+		}
+
+		err = ts.addNextDevotional(AddNextDevotionalReq{PlanId: plan.Id, DevotionalId: dd.Devotional.Id})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+	}
+	return err
+}
+
+func (ts *TopicSender) addTopicToDevotionals(topic Topic, yearlyDevotionalsJSON string) error {
 
 	yealyDevotionals := mapYearlyDevotionalsFromJSON(yearlyDevotionalsJSON)
 	var err error
@@ -99,10 +156,8 @@ func (ts *TopicSender) addTopic(topic Topic, yearlyDevotionalsJSON string) error
 		plan := ts.yearlyPlan(GetYearlyPlanReq{Year: dev.Year, AuthorId: ts.to.AuthorId})
 		if plan == nil {
 			err = ErrYearlyPlanNotFound(dev.Year)
-			// log.Println(err)
-			log.Fatal(err)
+			log.Println(err)
 			continue
-			// return ErrYearlyPlanNotFound(year)
 		}
 
 		dd := ts.dailyDevotional(GetPlanDevotionalReq{TopicId: plan.TopicId, Day: dev.Day})
@@ -115,59 +170,40 @@ func (ts *TopicSender) addTopic(topic Topic, yearlyDevotionalsJSON string) error
 		if err != nil {
 			log.Print(err)
 			continue
-			// return err
 		}
 	}
 	return err
 }
 
-func (ts *TopicSender) addDevotionalTopic(data AddDevotionalTopicReq) error {
-	endpoint := fmt.Sprintf("%s/devotionals/%s/topics/add", ts.apiUrl, data.DevotionalId)
-
-	body, err := json.Marshal(data)
+func (ts *TopicSender) addDevotionalTopic(body AddDevotionalTopicReq) error {
+	endpoint := fmt.Sprintf("%s/devotionals/%s/topics/add", ts.apiUrl, body.DevotionalId)
+	_, err := post(endpoint, body)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logRequestError(req, err)
-		return err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		err = ErrAddingDailyDevotional(http.StatusCreated, resp.StatusCode)
-		logRequestResponseError(req, resp, body, err)
-		return err
-	}
-	logRequest(req)
 	return nil
 }
 
-func (ts *TopicSender) yearlyPlan(getPlan GetYearlyPlanReq) *YearlyPlan {
-	//refresh cache
-	if ts.yearlyPlans == nil {
-		if err := ts.refreshYearlyPlans(getPlan.AuthorId); err != nil {
-			log.Print(err)
-			return nil
-		}
-		if err := ts.refreshTopics(); err != nil {
-			log.Print(err)
-			return nil
-		}
+func (ts *TopicSender) addNextDevotional(body AddNextDevotionalReq) error {
+
+	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ts.apiUrl, body.PlanId)
+	_, err := post(endpoint, body)
+	if err != nil {
+		return err
 	}
+
+	return nil
+}
+
+func (ts *TopicSender) yearlyPlan(getPlan GetYearlyPlanReq) *Plan {
 
 	topic, ok := ts.topics[strconv.Itoa(getPlan.Year)]
 	if !ok {
 		return nil
 	}
 
-	if plan, ok := ts.yearlyPlans[topic.Id]; ok {
+	if plan, ok := ts.plans[topic.Id]; ok {
 		return plan
 	}
 
@@ -175,7 +211,7 @@ func (ts *TopicSender) yearlyPlan(getPlan GetYearlyPlanReq) *YearlyPlan {
 }
 
 func (ts *TopicSender) refreshCache(authorId string) error {
-	if err := ts.refreshYearlyPlans(authorId); err != nil {
+	if err := ts.refreshPlans(authorId); err != nil {
 		return err
 	}
 	if err := ts.refreshTopics(); err != nil {
@@ -184,19 +220,19 @@ func (ts *TopicSender) refreshCache(authorId string) error {
 	return nil
 }
 
-func (ts *TopicSender) refreshYearlyPlans(authorId string) error {
+func (ts *TopicSender) refreshPlans(authorId string) error {
 	endpoint := fmt.Sprintf("%s/yearly-plans?authorId=%s", ts.apiUrl, authorId)
 	resp, err := get(endpoint)
 	if err != nil {
 		return err
 	}
 
-	yearlyPlans, err := newYearlyPlansFromJSON(resp.Body)
+	yearlyPlans, err := newPlansFromJSON(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	ts.yearlyPlans = make(map[string]*YearlyPlan)
+	ts.plans = make(map[string]*Plan)
 	for _, plan := range yearlyPlans {
 		dailyDevotionals, err := ts.getDailyDevotionals(plan.Id)
 		if err != nil {
@@ -205,10 +241,10 @@ func (ts *TopicSender) refreshYearlyPlans(authorId string) error {
 		}
 		ddIdx := make(map[string]*DailyDevotional)
 		for _, dd := range dailyDevotionals {
-			ddIdx[string(dd.Day)] = dd
+			ddIdx[fmt.Sprint(dd.Day)] = dd
 		}
 		plan.DailyDevotionals = ddIdx
-		ts.yearlyPlans[string(plan.TopicId)] = plan
+		ts.plans[plan.TopicId] = plan
 	}
 	return nil
 }
@@ -246,8 +282,8 @@ func (ts *TopicSender) getDailyDevotionals(planId string) ([]*DailyDevotional, e
 	return dailyDevotionals, nil
 }
 
-func newYearlyPlansFromJSON(rdr io.Reader) ([]*YearlyPlan, error) {
-	var plans []*YearlyPlan
+func newPlansFromJSON(rdr io.Reader) ([]*Plan, error) {
+	var plans []*Plan
 	err := json.NewDecoder(rdr).Decode(&plans)
 
 	if err != nil {
@@ -280,7 +316,7 @@ func newDailyDevotionalsFromJSON(rdr io.Reader) ([]*DailyDevotional, error) {
 
 func (ts *TopicSender) dailyDevotional(getDev GetPlanDevotionalReq) *DailyDevotional {
 	//from cache
-	if dev, ok := ts.yearlyPlans[getDev.TopicId].DailyDevotionals[string(getDev.Day)]; ok {
+	if dev, ok := ts.plans[getDev.TopicId].DailyDevotionals[fmt.Sprint(getDev.Day)]; ok {
 		return dev
 	}
 	return nil
@@ -290,7 +326,7 @@ func (ts *TopicSender) mapItem(feed feed.Feed) *Topic {
 
 	return &Topic{
 		uuid.New().String(),
-		feed["title"],
+		strings.Split(feed["title"], ",")[0],
 		"",
 		0,
 		ts.to.AuthorId,
@@ -318,8 +354,34 @@ func get(endpoint string) (*http.Response, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		err = ErrGettingPlans(http.StatusOK, resp.StatusCode)
+		err = ErrGettingResource(http.StatusOK, resp.StatusCode)
 		logRequestResponseError(req, resp, nil, err)
+		return nil, err
+	}
+	logRequest(req)
+	return resp, nil
+}
+
+func post(endpoint string, obj interface{}) (*http.Response, error) {
+	body, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		logRequestError(req, err)
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		err = ErrCreatingResource(http.StatusCreated, resp.StatusCode)
+		logRequestResponseError(req, resp, body, err)
 		return nil, err
 	}
 	logRequest(req)

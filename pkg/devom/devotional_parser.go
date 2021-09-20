@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"code.sajari.com/docconv"
@@ -18,9 +19,18 @@ var (
 	ErrReadingResource             = func(err error) error {
 		return fmt.Errorf("Error reading document: %w", err)
 	}
+	ErrDoesNotHaveValidDay = func(want, got int) error {
+		return fmt.Errorf("Invalid day: want %d, but got %d", want, got)
+	}
+	ErrTitleAlreadyExists = func(title string) error {
+		return fmt.Errorf("Title \"%s\" already exists", title)
+	}
 )
 
-type DevotionalParser struct{}
+type DevotionalParser struct {
+	Items       map[string]*feed.Feed
+	Devotionals map[string]*Devotional
+}
 
 func NewDevotionalParser() feed.Parser {
 	return &DevotionalParser{}
@@ -37,16 +47,58 @@ func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 	}
 
 	devs := splitDevotionals(txt)
+	lastDay := 0
 	for _, dev := range devs {
 		f, err := parseDevotional(dev)
 		if err != nil {
 			//log.Println(err, dev)
 			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
-		} else {
-			feeds = append(feeds, f)
+			continue
 		}
+		day, err := strconv.Atoi(f["day"])
+		if err != nil {
+			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+			continue
+		}
+
+		//validate days
+		if len(unknownFeeds) == 0 {
+			lastDay = day - 1
+			if len(feeds) > 0 {
+				lastDay, _ = strconv.Atoi(feeds[len(feeds)-1]["day"])
+			}
+			if day != lastDay+1 {
+				//log.Println(err, dev)
+				err = ErrDoesNotHaveValidDay(lastDay+1, day)
+				unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+				continue
+			}
+		}
+
+		//validate title
+		// dp.Items = feeds
+		if err = dp.uniqueTitle(f["title"]); err != nil {
+			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+			continue
+		}
+
+		feeds = append(feeds, f)
 	}
+
 	return &feed.ParseFeeds{unknownFeeds, feeds}, nil
+}
+
+func (dp *DevotionalParser) uniqueTitle(title string) error {
+
+	_, ok := dp.Items[title]
+	if ok {
+		return ErrTitleAlreadyExists(title)
+	}
+	_, ok = dp.Devotionals[title]
+	if ok {
+		return ErrTitleAlreadyExists(title)
+	}
+	return nil
 }
 
 func (dp *DevotionalParser) read(r io.Reader) (string, error) {

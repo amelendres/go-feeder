@@ -35,12 +35,13 @@ func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
 	var err error
 	for _, f := range feeds {
 		dev := ps.mapItem(f)
-		if err = ps.createDevotional(dev); err == nil {
-			day, _ := strconv.Atoi(f["day"])
-			err = ps.addDailyDevotional(AddDailyDevotionalReq{day, dev.Id}, ps.to.PlanId)
-			if err != nil {
-				return err
-			}
+		if err = ps.createDevotional(dev); err != nil {
+			return err
+		}
+		day, _ := strconv.Atoi(f["day"])
+		err = ps.addDailyDevotional(AddDailyDevotionalReq{ps.to.PlanId, dev.Id, day})
+		if err != nil {
+			return err
 		}
 	}
 	return err
@@ -89,8 +90,8 @@ func (ps *PlanSender) createDevotional(dev Devotional) error {
 	return nil
 }
 
-func (ps *PlanSender) addDailyDevotional(data AddDailyDevotionalReq, planId string) error {
-	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, planId)
+func (ps *PlanSender) addDailyDevotional(data AddDailyDevotionalReq) error {
+	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, data.PlanId)
 
 	body, err := json.Marshal(data)
 	if err != nil {

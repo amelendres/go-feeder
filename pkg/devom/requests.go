@@ -1,7 +1,13 @@
 package devom
 
 type AddDailyDevotionalReq struct {
+	PlanId       string `json:"-"`
+	DevotionalId string `json:"devotionalId"`
 	Day          int    `json:"day"`
+}
+
+type AddNextDevotionalReq struct {
+	PlanId       string `json:"-"`
 	DevotionalId string `json:"devotionalId"`
 }
 
@@ -16,6 +22,6 @@ type GetPlanDevotionalReq struct {
 }
 
 type AddDevotionalTopicReq struct {
-	DevotionalId string `json:"devotionalId"`
+	DevotionalId string `json:"-"`
 	TopicId      string `json:"topicId"`
 }

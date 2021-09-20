@@ -28,8 +28,8 @@ var (
 	devomAPIUrl = os.Getenv("DEVOM_API_URL")
 
 	feedSource = map[string]string{
-		"dev-ok":          "../devom/_test_feeds-ok.docx",
-		"dev-ko":          "../devom/_test_feeds-ko.docx",
+		"dev-ok":          "../devom/_test_devotionals-ok.docx",
+		"dev-ko":          "../devom/_test_devotionals-ko.docx",
 		"no-file":         "../devom/_test_not-exists-file",
 		"drive-dev-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
 		"topics-ok":       "../devom/_test_topics-ok.xlsx",
