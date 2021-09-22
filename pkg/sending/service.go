@@ -25,7 +25,7 @@ func NewService(s feed.Sender, f feed.Feeder) Service {
 }
 
 func (ps *service) Send(req SendReq) error {
-
+	ps.feeder.Destination(devom.NewDestination(req.PlanId, req.PublisherId, req.AuthorId))
 	feeds, err := ps.feeder.Feeds(req.FileUrl)
 	if err != nil {
 		return err

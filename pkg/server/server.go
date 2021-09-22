@@ -52,16 +52,19 @@ func (ds *FeederServer) importFeedHandler(w http.ResponseWriter, r *http.Request
 func (ds *FeederServer) parseFeedHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req feeding.FeedReq
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	feeds, err := ds.feeder.Feeds(req)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	w.Header().Set("content-type", jsonContentType)
 	json.NewEncoder(w).Encode(feeds)
-
-	w.WriteHeader(http.StatusOK)
 }

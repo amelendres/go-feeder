@@ -1,10 +1,8 @@
 package devom
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"log"
 	"strconv"
 
 	feed "github.com/amelendres/go-feeder/pkg"
@@ -22,24 +20,42 @@ var (
 
 // TODO: rename to DevotionalSender
 type PlanSender struct {
-	to     Destination
-	apiUrl string
+	api         API
+	to          Destination
+	plan        *Plan
+	devotionals map[string]*Devotional
 }
 
-func NewPlanSender(apiUrl string) feed.Sender {
-	return &PlanSender{apiUrl: apiUrl}
+func NewPlanSender(api API) feed.Sender {
+	return &PlanSender{api: api}
 }
 
 func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
 	ps.to = to.(Destination)
+
+	if err := ps.refreshCache(); err != nil {
+		log.Fatal(err)
+		return nil
+	}
+
 	var err error
 	for _, f := range feeds {
 		dev := ps.mapItem(f)
-		if err = ps.createDevotional(dev); err != nil {
+		day, _ := strconv.Atoi(f["day"])
+
+		//adding current Devotional as Daily Devotional
+		if currentDev := ps.devotional(dev.Title); currentDev != nil {
+			if dd := ps.dailyDevotional(currentDev.Id); dd != nil {
+				continue
+			}
+			_ = ps.api.addDailyDevotional(AddDailyDevotionalReq{ps.to.PlanId, currentDev.Id, day})
+			continue
+		}
+
+		if err = ps.api.createDevotional(dev); err != nil {
 			return err
 		}
-		day, _ := strconv.Atoi(f["day"])
-		err = ps.addDailyDevotional(AddDailyDevotionalReq{ps.to.PlanId, dev.Id, day})
+		err = ps.api.addDailyDevotional(AddDailyDevotionalReq{ps.to.PlanId, dev.Id, day})
 		if err != nil {
 			return err
 		}
@@ -62,58 +78,37 @@ func (ps *PlanSender) mapItem(feed feed.Feed) Devotional {
 	}
 }
 
-func (ps *PlanSender) createDevotional(dev Devotional) error {
-	endpoint := fmt.Sprintf("%s/devotionals", ps.apiUrl)
-
-	body, err := json.Marshal(dev)
+func (ps *PlanSender) refreshCache() error {
+	plan, err := ps.api.getPlan(ps.to.PlanId)
 	if err != nil {
 		return err
 	}
+	ps.plan = plan
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
+	devotionals, err := ps.api.getDevotionals(ps.to.AuthorId)
 	if err != nil {
 		return err
 	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logRequestError(req, err)
-		return err
+	ps.devotionals = make(map[string]*Devotional)
+	for _, dev := range devotionals {
+		ps.devotionals[dev.Title] = dev
 	}
 
-	if resp.StatusCode != http.StatusCreated {
-		err = ErrCreatingDevotional(http.StatusCreated, resp.StatusCode)
-		logRequestResponseError(req, resp, body, err)
-		return err
-	}
-	logRequest(req)
 	return nil
 }
 
-func (ps *PlanSender) addDailyDevotional(data AddDailyDevotionalReq) error {
-	endpoint := fmt.Sprintf("%s/yearly-plans/%s/devotionals", ps.apiUrl, data.PlanId)
-
-	body, err := json.Marshal(data)
-	if err != nil {
-		return err
+func (ps *PlanSender) dailyDevotional(id string) *DailyDevotional {
+	//from cache
+	if dd, ok := ps.plan.DailyDevotionals[id]; ok {
+		return dd
 	}
+	return nil
+}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		return err
+func (ps *PlanSender) devotional(title string) *Devotional {
+	//from cache
+	if dev, ok := ps.devotionals[title]; ok {
+		return dev
 	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logRequestError(req, err)
-		return err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		err = ErrAddingDailyDevotional(http.StatusCreated, resp.StatusCode)
-		logRequestResponseError(req, resp, body, err)
-		return err
-	}
-	logRequest(req)
 	return nil
 }

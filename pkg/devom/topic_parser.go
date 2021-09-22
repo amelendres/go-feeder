@@ -29,10 +29,17 @@ var (
 	}
 )
 
-type TopicParser struct{}
+type TopicParser struct {
+	api API
+	to  Destination
+}
 
-func NewTopicParser() feed.Parser {
-	return &TopicParser{}
+func NewTopicParser(api API) feed.Parser {
+	return &TopicParser{api: api}
+}
+
+func (dp *TopicParser) Destination(d feed.Destination) {
+	dp.to = d.(Destination)
 }
 
 func (dp *TopicParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {

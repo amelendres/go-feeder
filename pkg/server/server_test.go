@@ -26,15 +26,16 @@ import (
 
 var (
 	devomAPIUrl = os.Getenv("DEVOM_API_URL")
-
-	feedSource = map[string]string{
-		"dev-ok":          "../devom/_test_devotionals-ok.docx",
-		"dev-ko":          "../devom/_test_devotionals-ko.docx",
-		"no-file":         "../devom/_test_not-exists-file",
-		"drive-dev-2019a": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
-		"topics-ok":       "../devom/_test_topics-ok.xlsx",
-		"topics-ko":       "../devom/_test_topics-ko.xlsx",
-		"drive-topics-ok": "1kWN7HHNrlytOyApwUlnA0SXc-WBsbuiA",
+	api         = *devom.NewAPI(devomAPIUrl)
+	feedSource  = map[string]string{
+		"dev-ok":              "../devom/_test_devotionals-ok.docx",
+		"dev-ko":              "../devom/_test_devotionals-ko.docx",
+		"no-file":             "../devom/_test_not-exists-file",
+		"drive-dev-2019a":     "1XI0cxe6T1VSipeeCmEbk14VDkZM5PS_c",
+		"drive-dev-bad-title": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
+		"topics-ok":           "../devom/_test_topics-ok.xlsx",
+		"topics-ko":           "../devom/_test_topics-ko.xlsx",
+		"drive-topics-ok":     "1kWN7HHNrlytOyApwUlnA0SXc-WBsbuiA",
 	}
 
 	planIds = map[int]string{
@@ -52,12 +53,12 @@ var (
 )
 
 // TODO: mock DEVOM server
-func TestServer_ImportDevotionals(t *testing.T) {
+func TestServer_ImportDevotionals_FromFS(t *testing.T) {
 
 	fp := fs.NewFileProvider()
-	parser := devom.NewDevotionalParser()
+	parser := devom.NewDevotionalParser(api)
 	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender(devomAPIUrl)
+	sender := devom.NewPlanSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
@@ -93,9 +94,9 @@ func TestServer_ImportDevotionals(t *testing.T) {
 func TestServer_ImportTopics(t *testing.T) {
 
 	fp := fs.NewFileProvider()
-	parser := devom.NewTopicParser()
+	parser := devom.NewTopicParser(api)
 	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewTopicSender(devomAPIUrl)
+	sender := devom.NewTopicSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
@@ -128,12 +129,12 @@ func TestServer_ImportTopics(t *testing.T) {
 	})
 }
 
-func TestServer_ParseDevotionals(t *testing.T) {
+func TestServer_ParseDevotionals_FromFS(t *testing.T) {
 
 	fp := fs.NewFileProvider()
-	parser := devom.NewDevotionalParser()
+	parser := devom.NewDevotionalParser(api)
 	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender("")
+	sender := devom.NewPlanSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
@@ -149,7 +150,7 @@ func TestServer_ParseDevotionals(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 14, len(parseFeeds.Feeds))
+		assert.Equal(t, 15, len(parseFeeds.Feeds))
 		assert.Equal(t, 0, len(parseFeeds.UnknownFeeds))
 	})
 
@@ -161,8 +162,8 @@ func TestServer_ParseDevotionals(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 5, len(parseFeeds.Feeds))
-		assert.Equal(t, 5, len(parseFeeds.UnknownFeeds))
+		assert.Equal(t, 4, len(parseFeeds.Feeds))
+		assert.Equal(t, 6, len(parseFeeds.UnknownFeeds))
 	})
 
 	t.Run("A non existing resource file", func(t *testing.T) {
@@ -185,9 +186,9 @@ func TestServer_ParseDevotionals_FromGoogleDrive(t *testing.T) {
 	driveService, _ := drive.NewService(ctx, option.WithAPIKey(googleAPIKey))
 
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.NewDevotionalParser()
+	parser := devom.NewDevotionalParser(api)
 	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender("")
+	sender := devom.NewPlanSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)

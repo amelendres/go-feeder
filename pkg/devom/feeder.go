@@ -18,11 +18,14 @@ func NewFeeder(fp feed.FileProvider, p feed.Parser) feed.Feeder {
 	}
 }
 
+func (df *Feeder) Destination(d feed.Destination) {
+	df.parser.Destination(d)
+}
+
 func (df *Feeder) Feeds(path string) (*feed.ParseFeeds, error) {
 	f, err := df.fileProvider.File(path)
 	if err != nil {
 		return nil, err
 	}
-
 	return df.parser.Parse(f)
 }

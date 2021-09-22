@@ -5,7 +5,7 @@ type Topic struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Position    int    `json:"position"`
-	AuthorId    string `json:"authorId"`
+	AuthorId    string `json:"-"`
 }
 
 type YearlyDevotional struct {

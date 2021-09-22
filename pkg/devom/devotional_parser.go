@@ -27,25 +27,33 @@ var (
 	}
 )
 
-type DevotionalParser struct {
-	Items       map[string]*feed.Feed
-	Devotionals map[string]*Devotional
+type devotionalParser struct {
+	api         API
+	to          Destination
+	items       map[string]*feed.Feed
+	devotionals map[string]*Devotional
 }
 
-func NewDevotionalParser() feed.Parser {
-	return &DevotionalParser{}
+func NewDevotionalParser(api API) feed.Parser {
+	return &devotionalParser{api: api}
 }
 
-func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
+func (dp *devotionalParser) Destination(d feed.Destination) {
+	dp.to = d.(Destination)
+}
+
+func (dp *devotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 	feeds := []feed.Feed{}
 	unknownFeeds := []feed.UnknownFeed{}
 
 	txt, err := dp.read(r)
 	if err != nil {
-		// log.Println(fmt.Errorf("Error reading resource: %s, %v ", r, err))
 		return &feed.ParseFeeds{unknownFeeds, feeds}, err
 	}
 
+	_ = dp.refreshCache(dp.to.AuthorId)
+
+	dp.items = make(map[string]*feed.Feed)
 	devs := splitDevotionals(txt)
 	lastDay := 0
 	for _, dev := range devs {
@@ -61,7 +69,7 @@ func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 			continue
 		}
 
-		//validate days
+		//validate sequencial days
 		if len(unknownFeeds) == 0 {
 			lastDay = day - 1
 			if len(feeds) > 0 {
@@ -76,32 +84,32 @@ func (dp *DevotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 		}
 
 		//validate title
-		// dp.Items = feeds
 		if err = dp.uniqueTitle(f["title"]); err != nil {
 			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
 			continue
 		}
 
 		feeds = append(feeds, f)
+		dp.items[f["title"]] = &f
 	}
 
 	return &feed.ParseFeeds{unknownFeeds, feeds}, nil
 }
 
-func (dp *DevotionalParser) uniqueTitle(title string) error {
+func (dp *devotionalParser) uniqueTitle(title string) error {
 
-	_, ok := dp.Items[title]
+	_, ok := dp.items[title]
 	if ok {
 		return ErrTitleAlreadyExists(title)
 	}
-	_, ok = dp.Devotionals[title]
+	_, ok = dp.devotionals[title]
 	if ok {
 		return ErrTitleAlreadyExists(title)
 	}
 	return nil
 }
 
-func (dp *DevotionalParser) read(r io.Reader) (string, error) {
+func (dp *devotionalParser) read(r io.Reader) (string, error) {
 
 	content, _, err := docconv.ConvertDoc(r)
 
@@ -112,17 +120,32 @@ func (dp *DevotionalParser) read(r io.Reader) (string, error) {
 	return content, nil
 }
 
+func (dp *devotionalParser) refreshCache(authorId string) error {
+	devotionals, err := dp.api.getDevotionals(authorId)
+	if err != nil {
+		return err
+	}
+
+	dp.devotionals = make(map[string]*Devotional)
+	for _, dev := range devotionals {
+		dp.devotionals[dev.Title] = dev
+	}
+	return nil
+}
+
 func splitDevotionals(text string) []string {
-	day := regexp.MustCompile(`\n\d{3}`)
+	// day := regexp.MustCompile(`\n(\d{3}|\d{2}\n|\d{1}\n)`)
+	// day := regexp.MustCompile(`\n([0-9]+)\n`)
+	day := regexp.MustCompile(`\n([0-9]+)(\n|\s*\n)`)
 
 	devTexts := day.Split(text, -1)
 	devTexts = trimSlice(devTexts)
-
 	days := day.FindAllString(text, -1)
-
+	// fmt.Printf("text: %+v\n total: %d\n", text, len(devTexts))
+	// fmt.Printf("days: %+v\n total: %d\n", days, len(days))
 	var devs []string
 	for i, item := range devTexts {
-		devs = append(devs, days[i]+"\n"+item)
+		devs = append(devs, strings.TrimSpace(days[i])+"\n"+item)
 	}
 
 	return devs

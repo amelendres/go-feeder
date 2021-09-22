@@ -19,7 +19,6 @@ func (fp *FileProvider) File(path string) (io.Reader, error) {
 	file, err := os.Open(path)
 
 	if err != nil {
-		// log.Fatal(err)
 		return nil, err
 	}
 	return file, nil

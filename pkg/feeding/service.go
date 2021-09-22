@@ -2,10 +2,11 @@ package feeding
 
 import (
 	feed "github.com/amelendres/go-feeder/pkg"
+	"github.com/amelendres/go-feeder/pkg/devom"
 )
 
 type FeedReq struct {
-	FileUrl string
+	PlanId, AuthorId, PublisherId, FileUrl string
 }
 
 type Service interface {
@@ -20,6 +21,7 @@ func NewService(f feed.Feeder) Service {
 	return &service{feeder: f}
 }
 
-func (df *service) Feeds(req FeedReq) (*feed.ParseFeeds, error) {
-	return df.feeder.Feeds(req.FileUrl)
+func (s *service) Feeds(req FeedReq) (*feed.ParseFeeds, error) {
+	s.feeder.Destination(devom.NewDestination(req.PlanId, req.PublisherId, req.AuthorId))
+	return s.feeder.Feeds(req.FileUrl)
 }

@@ -42,10 +42,10 @@ func main() {
 
 	//TODO switch port DEVOTIONAL==5500|TOPIC==5501
 	fp := cloud.NewGDFileProvider(driveService)
-	parser := devom.NewTopicParser()
-	// feeder := devom.NewTopicFeeder(fp, parser)
+	api := *devom.NewAPI(devomAPIUrl)
+	parser := devom.NewTopicParser(api)
 	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewTopicSender(devomAPIUrl)
+	sender := devom.NewTopicSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
