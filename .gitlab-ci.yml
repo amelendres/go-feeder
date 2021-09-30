@@ -6,6 +6,7 @@ variables:
 stages:
   - build
 
+#develop  
 staging-build-deploy:
   stage: build
   image: docker:latest

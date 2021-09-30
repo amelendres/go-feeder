@@ -18,21 +18,22 @@ var (
 	}
 )
 
-// TODO: rename to DevotionalSender
-type PlanSender struct {
+type devotionalSender struct {
 	api         API
-	to          Destination
+	to          *feed.Destination
 	plan        *Plan
 	devotionals map[string]*Devotional
 }
 
-func NewPlanSender(api API) feed.Sender {
-	return &PlanSender{api: api}
+func NewDevotionalSender(api API) feed.Sender {
+	return &devotionalSender{api: api}
 }
 
-func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
-	ps.to = to.(Destination)
+func (ps *devotionalSender) Destination(d *feed.Destination) {
+	ps.to = d
+}
 
+func (ps *devotionalSender) Send(feeds []feed.Item) error {
 	if err := ps.refreshCache(); err != nil {
 		log.Fatal(err)
 		return nil
@@ -63,7 +64,7 @@ func (ps *PlanSender) Send(feeds []feed.Feed, to feed.Destination) error {
 	return err
 }
 
-func (ps *PlanSender) mapItem(feed feed.Feed) Devotional {
+func (ps *devotionalSender) mapItem(feed feed.Item) Devotional {
 
 	return Devotional{
 		uuid.New().String(),
@@ -78,7 +79,7 @@ func (ps *PlanSender) mapItem(feed feed.Feed) Devotional {
 	}
 }
 
-func (ps *PlanSender) refreshCache() error {
+func (ps *devotionalSender) refreshCache() error {
 	plan, err := ps.api.getPlan(ps.to.PlanId)
 	if err != nil {
 		return err
@@ -97,7 +98,7 @@ func (ps *PlanSender) refreshCache() error {
 	return nil
 }
 
-func (ps *PlanSender) dailyDevotional(id string) *DailyDevotional {
+func (ps *devotionalSender) dailyDevotional(id string) *DailyDevotional {
 	//from cache
 	if dd, ok := ps.plan.DailyDevotionals[id]; ok {
 		return dd
@@ -105,7 +106,7 @@ func (ps *PlanSender) dailyDevotional(id string) *DailyDevotional {
 	return nil
 }
 
-func (ps *PlanSender) devotional(title string) *Devotional {
+func (ps *devotionalSender) devotional(title string) *Devotional {
 	//from cache
 	if dev, ok := ps.devotionals[title]; ok {
 		return dev

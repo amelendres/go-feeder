@@ -1,16 +1,13 @@
 package feed
 
-//TODO: Rename to Item
-type Feed map[string]string
+type Item map[string]string
 
-//TODO: Rename to UnknownItem
-type UnknownFeed struct {
-	Feed      []string
-	FeedError string
+type UnknownItem struct {
+	Item      []string
+	ItemError string
 }
 
-//TODO: Rename to ParsedItems
-type ParseFeeds struct {
-	UnknownFeeds []UnknownFeed
-	Feeds        []Feed
+type ParsedItems struct {
+	UnknownItems []UnknownItem
+	Items        []Item
 }

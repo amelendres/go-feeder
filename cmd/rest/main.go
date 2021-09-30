@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os"
 
+	feed "github.com/amelendres/go-feeder/pkg"
 	"github.com/amelendres/go-feeder/pkg/feeding"
+	"github.com/amelendres/go-feeder/pkg/fs"
 	"github.com/amelendres/go-feeder/pkg/sending"
 
+	"github.com/amelendres/go-feeder/internal/devom"
 	"github.com/amelendres/go-feeder/pkg/cloud"
-	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/amelendres/go-feeder/pkg/server"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -41,10 +43,13 @@ func main() {
 	}
 
 	//TODO switch port DEVOTIONAL==5500|TOPIC==5501
-	fp := cloud.NewGDFileProvider(driveService)
+	gdp := cloud.NewGDFileProvider(driveService)
+	fsp := fs.NewFileProvider()
+	fileProviders := []feed.FileProvider{fsp, gdp}
+
 	api := *devom.NewAPI(devomAPIUrl)
 	parser := devom.NewTopicParser(api)
-	feeder := devom.NewFeeder(fp, parser)
+	feeder := feed.NewFeeder(parser, fileProviders)
 	sender := devom.NewTopicSender(api)
 
 	ps := sending.NewService(sender, feeder)

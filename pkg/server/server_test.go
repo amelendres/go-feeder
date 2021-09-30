@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"bytes"
@@ -12,11 +12,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/amelendres/go-feeder/internal/devom"
+	feed "github.com/amelendres/go-feeder/pkg"
 	"github.com/amelendres/go-feeder/pkg/cloud"
-	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/amelendres/go-feeder/pkg/feeding"
 	"github.com/amelendres/go-feeder/pkg/fs"
 	"github.com/amelendres/go-feeder/pkg/sending"
+	"github.com/amelendres/go-feeder/pkg/server"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -28,14 +30,14 @@ var (
 	devomAPIUrl = os.Getenv("DEVOM_API_URL")
 	api         = *devom.NewAPI(devomAPIUrl)
 	feedSource  = map[string]string{
-		"dev-ok":              "../devom/_test_devotionals-ok.docx",
-		"dev-ko":              "../devom/_test_devotionals-ko.docx",
-		"no-file":             "../devom/_test_not-exists-file",
-		"drive-dev-2019a":     "1XI0cxe6T1VSipeeCmEbk14VDkZM5PS_c",
-		"drive-dev-bad-title": "1frfbhH2oUVOHLK7aNWr-0-2--hemIccj",
-		"topics-ok":           "../devom/_test_topics-ok.xlsx",
-		"topics-ko":           "../devom/_test_topics-ko.xlsx",
-		"drive-topics-ok":     "1kWN7HHNrlytOyApwUlnA0SXc-WBsbuiA",
+		"dev-ok":              "../../internal/devom/_test_devotionals-ok.docx",
+		"dev-ko":              "../../internal/devom/_test_devotionals-ko.docx",
+		"no-file":             "../../internal/devom/_test_not-exists-file",
+		"drive-dev-2019a":     "https://docs.google.com/document/d/1XI0cxe6T1VSipeeCmEbk14VDkZM5PS_c/preview",
+		"drive-dev-bad-title": "https://docs.google.com/document/d/1frfbhH2oUVOHLK7aNWr-0-2--hemIccj/preview",
+		"topics-ok":           "../../internal/devom/_test_topics-ok.xlsx",
+		"topics-ko":           "../../internal/devom/_test_topics-ko.xlsx",
+		"drive-topics-ok":     "https://docs.google.com/spreadsheets/d/1kWN7HHNrlytOyApwUlnA0SXc-WBsbuiA/preview",
 	}
 
 	planIds = map[int]string{
@@ -57,13 +59,13 @@ func TestServer_ImportDevotionals_FromFS(t *testing.T) {
 
 	fp := fs.NewFileProvider()
 	parser := devom.NewDevotionalParser(api)
-	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender(api)
+	feeder := feed.NewFeeder(parser, []feed.FileProvider{fp})
+	sender := devom.NewDevotionalSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
 
-	ds := NewFeederServer(ps, df)
+	ds := server.NewFeederServer(ps, df)
 
 	t.Run("Unknown feeds", func(t *testing.T) {
 		payload.FileUrl = feedSource["dev-ko"]
@@ -95,13 +97,13 @@ func TestServer_ImportTopics(t *testing.T) {
 
 	fp := fs.NewFileProvider()
 	parser := devom.NewTopicParser(api)
-	feeder := devom.NewFeeder(fp, parser)
+	feeder := feed.NewFeeder(parser, []feed.FileProvider{fp})
 	sender := devom.NewTopicSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
 
-	ds := NewFeederServer(ps, df)
+	ds := server.NewFeederServer(ps, df)
 
 	t.Run("Unknown items", func(t *testing.T) {
 		payload.FileUrl = feedSource["topics-ko"]
@@ -133,13 +135,13 @@ func TestServer_ParseDevotionals_FromFS(t *testing.T) {
 
 	fp := fs.NewFileProvider()
 	parser := devom.NewDevotionalParser(api)
-	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender(api)
+	feeder := feed.NewFeeder(parser, []feed.FileProvider{fp})
+	sender := devom.NewDevotionalSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
 
-	ds := NewFeederServer(ps, df)
+	ds := server.NewFeederServer(ps, df)
 
 	t.Run("A valid devotional feeds", func(t *testing.T) {
 		payload.FileUrl = feedSource["dev-ok"]
@@ -150,8 +152,8 @@ func TestServer_ParseDevotionals_FromFS(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 15, len(parseFeeds.Feeds))
-		assert.Equal(t, 0, len(parseFeeds.UnknownFeeds))
+		assert.Equal(t, 15, len(parseFeeds.Items))
+		assert.Equal(t, 0, len(parseFeeds.UnknownItems))
 	})
 
 	t.Run("With unknown devotional feeds", func(t *testing.T) {
@@ -162,8 +164,8 @@ func TestServer_ParseDevotionals_FromFS(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 4, len(parseFeeds.Feeds))
-		assert.Equal(t, 6, len(parseFeeds.UnknownFeeds))
+		assert.Equal(t, 4, len(parseFeeds.Items))
+		assert.Equal(t, 6, len(parseFeeds.UnknownItems))
 	})
 
 	t.Run("A non existing resource file", func(t *testing.T) {
@@ -187,13 +189,13 @@ func TestServer_ParseDevotionals_FromGoogleDrive(t *testing.T) {
 
 	fp := cloud.NewGDFileProvider(driveService)
 	parser := devom.NewDevotionalParser(api)
-	feeder := devom.NewFeeder(fp, parser)
-	sender := devom.NewPlanSender(api)
+	feeder := feed.NewFeeder(parser, []feed.FileProvider{fp})
+	sender := devom.NewDevotionalSender(api)
 
 	ps := sending.NewService(sender, feeder)
 	df := feeding.NewService(feeder)
 
-	ds := NewFeederServer(ps, df)
+	ds := server.NewFeederServer(ps, df)
 
 	t.Run("it parses from Google Drive File on POST", func(t *testing.T) {
 		payload.FileUrl = feedSource["drive-dev-2019a"]
@@ -204,8 +206,8 @@ func TestServer_ParseDevotionals_FromGoogleDrive(t *testing.T) {
 
 		parseFeeds := getParseFeedsFromResponse(t, response.Body)
 		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 100, len(parseFeeds.Feeds))
-		assert.Equal(t, 0, len(parseFeeds.UnknownFeeds))
+		assert.Equal(t, 100, len(parseFeeds.Items))
+		assert.Equal(t, 0, len(parseFeeds.UnknownItems))
 	})
 }
 
@@ -227,7 +229,7 @@ func newPostParseFeedRequest(sp sending.SendReq) *http.Request {
 	return req
 }
 
-func getParseFeedsFromResponse(t *testing.T, body io.Reader) feeder.ParseFeeds {
+func getParseFeedsFromResponse(t *testing.T, body io.Reader) feeder.ParsedItems {
 	t.Helper()
 	parsedFeeds, err := newParseFeedsFromJSON(body)
 
@@ -238,8 +240,8 @@ func getParseFeedsFromResponse(t *testing.T, body io.Reader) feeder.ParseFeeds {
 	return parsedFeeds
 }
 
-func newParseFeedsFromJSON(rdr io.Reader) (feeder.ParseFeeds, error) {
-	var parseFeeds feeder.ParseFeeds
+func newParseFeedsFromJSON(rdr io.Reader) (feeder.ParsedItems, error) {
+	var parseFeeds feeder.ParsedItems
 	err := json.NewDecoder(rdr).Decode(&parseFeeds)
 
 	if err != nil {

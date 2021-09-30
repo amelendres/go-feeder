@@ -31,20 +31,20 @@ var (
 
 type TopicParser struct {
 	api API
-	to  Destination
+	to  *feed.Destination
 }
 
 func NewTopicParser(api API) feed.Parser {
 	return &TopicParser{api: api}
 }
 
-func (dp *TopicParser) Destination(d feed.Destination) {
-	dp.to = d.(Destination)
+func (dp *TopicParser) Destination(d *feed.Destination) {
+	dp.to = d
 }
 
-func (dp *TopicParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
-	feeds := []feed.Feed{}
-	unknownFeeds := []feed.UnknownFeed{}
+func (dp *TopicParser) Parse(r io.Reader) (*feed.ParsedItems, error) {
+	feeds := []feed.Item{}
+	unknownFeeds := []feed.UnknownItem{}
 
 	f, err := excelize.OpenReader(r)
 	if err != nil {
@@ -59,17 +59,16 @@ func (dp *TopicParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 	for _, row := range rows {
 		item, err := parseFeedItem(row)
 		if err != nil {
-			// log.Printf("%+v\n\n", err)
-			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{row, err.Error()})
+			unknownFeeds = append(unknownFeeds, feed.UnknownItem{row, err.Error()})
 			continue
 		}
 
 		feeds = append(feeds, item)
 	}
-	return &feed.ParseFeeds{unknownFeeds, feeds}, nil
+	return &feed.ParsedItems{unknownFeeds, feeds}, nil
 }
 
-func parseFeedItem(row []string) (feed.Feed, error) {
+func parseFeedItem(row []string) (feed.Item, error) {
 	topic := make(map[string]string)
 	var devotionals []*YearlyDevotional
 	for idx, colCell := range row {

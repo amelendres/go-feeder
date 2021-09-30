@@ -28,7 +28,7 @@ var (
 
 type TopicSender struct {
 	api    API
-	to     Destination
+	to     *feed.Destination
 	plans  map[string]*Plan
 	topics map[string]*Topic
 }
@@ -37,8 +37,11 @@ func NewTopicSender(api API) feed.Sender {
 	return &TopicSender{api: api}
 }
 
-func (ts *TopicSender) Send(items []feed.Feed, to feed.Destination) error {
-	ts.to = to.(Destination)
+func (ts *TopicSender) Destination(d *feed.Destination) {
+	ts.to = d
+}
+
+func (ts *TopicSender) Send(items []feed.Item) error {
 	if err := ts.refreshCache(ts.to.AuthorId); err != nil {
 		log.Fatal(err)
 		return nil
@@ -213,7 +216,7 @@ func (ts *TopicSender) dailyDevotional(getDev GetPlanDevotionalReq) *DailyDevoti
 	return nil
 }
 
-func (ts *TopicSender) mapItem(feed feed.Feed) *Topic {
+func (ts *TopicSender) mapItem(feed feed.Item) *Topic {
 
 	return &Topic{
 		uuid.New().String(),
@@ -224,11 +227,11 @@ func (ts *TopicSender) mapItem(feed feed.Feed) *Topic {
 	}
 }
 
-func topicTitle(feed feed.Feed) string {
+func topicTitle(feed feed.Item) string {
 	return strings.Split(feed["title"], ",")[0]
 }
 
-func planTitle(feed feed.Feed) string {
+func planTitle(feed feed.Item) string {
 	txt := strings.Split(feed["title"], ",")
 	if len(txt) > 1 {
 		return txt[1] + " " + txt[0]

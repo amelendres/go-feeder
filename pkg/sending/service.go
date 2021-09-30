@@ -2,7 +2,6 @@ package sending
 
 import (
 	feed "github.com/amelendres/go-feeder/pkg"
-	"github.com/amelendres/go-feeder/pkg/devom"
 	"github.com/pkg/errors"
 )
 
@@ -25,15 +24,17 @@ func NewService(s feed.Sender, f feed.Feeder) Service {
 }
 
 func (ps *service) Send(req SendReq) error {
-	ps.feeder.Destination(devom.NewDestination(req.PlanId, req.PublisherId, req.AuthorId))
+	dest := feed.NewDestination(req.PlanId, req.PublisherId, req.AuthorId)
+	ps.feeder.Destination(dest)
 	feeds, err := ps.feeder.Feeds(req.FileUrl)
 	if err != nil {
 		return err
 	}
 
-	if len(feeds.UnknownFeeds) > 0 {
+	if len(feeds.UnknownItems) > 0 {
 		return ErrUnknownFeed
 	}
 
-	return ps.sender.Send(feeds.Feeds, devom.NewDestination(req.PlanId, req.PublisherId, req.AuthorId))
+	ps.sender.Destination(dest)
+	return ps.sender.Send(feeds.Items)
 }

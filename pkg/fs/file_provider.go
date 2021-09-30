@@ -23,3 +23,7 @@ func (fp *FileProvider) File(path string) (io.Reader, error) {
 	}
 	return file, nil
 }
+
+func (fp *FileProvider) Name() string {
+	return "fs"
+}

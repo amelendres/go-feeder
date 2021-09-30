@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	ErrUndefinedDestination        = errors.New("Undefined destination")
 	ErrFeedDoesNotHavePassage      = errors.New("Feed does not have passage")
 	ErrFeedDoesNotHaveContent      = errors.New("Feed does not have content")
 	ErrFeedDoesNotHaveValidPassage = errors.New("Feed does not have a valid passage")
@@ -29,8 +30,8 @@ var (
 
 type devotionalParser struct {
 	api         API
-	to          Destination
-	items       map[string]*feed.Feed
+	to          *feed.Destination
+	items       map[string]*feed.Item
 	devotionals map[string]*Devotional
 }
 
@@ -38,34 +39,33 @@ func NewDevotionalParser(api API) feed.Parser {
 	return &devotionalParser{api: api}
 }
 
-func (dp *devotionalParser) Destination(d feed.Destination) {
-	dp.to = d.(Destination)
+func (dp *devotionalParser) Destination(d *feed.Destination) {
+	dp.to = d
 }
 
-func (dp *devotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
-	feeds := []feed.Feed{}
-	unknownFeeds := []feed.UnknownFeed{}
+func (dp *devotionalParser) Parse(r io.Reader) (*feed.ParsedItems, error) {
+	feeds := []feed.Item{}
+	unknownFeeds := []feed.UnknownItem{}
 
 	txt, err := dp.read(r)
 	if err != nil {
-		return &feed.ParseFeeds{unknownFeeds, feeds}, err
+		return &feed.ParsedItems{unknownFeeds, feeds}, err
 	}
 
-	_ = dp.refreshCache(dp.to.AuthorId)
+	_ = dp.refreshCache()
 
-	dp.items = make(map[string]*feed.Feed)
+	dp.items = make(map[string]*feed.Item)
 	devs := splitDevotionals(txt)
 	lastDay := 0
 	for _, dev := range devs {
 		f, err := parseDevotional(dev)
 		if err != nil {
-			//log.Println(err, dev)
-			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+			unknownFeeds = append(unknownFeeds, feed.UnknownItem{lines(dev), err.Error()})
 			continue
 		}
 		day, err := strconv.Atoi(f["day"])
 		if err != nil {
-			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+			unknownFeeds = append(unknownFeeds, feed.UnknownItem{lines(dev), err.Error()})
 			continue
 		}
 
@@ -76,16 +76,15 @@ func (dp *devotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 				lastDay, _ = strconv.Atoi(feeds[len(feeds)-1]["day"])
 			}
 			if day != lastDay+1 {
-				//log.Println(err, dev)
 				err = ErrDoesNotHaveValidDay(lastDay+1, day)
-				unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+				unknownFeeds = append(unknownFeeds, feed.UnknownItem{lines(dev), err.Error()})
 				continue
 			}
 		}
 
 		//validate title
 		if err = dp.uniqueTitle(f["title"]); err != nil {
-			unknownFeeds = append(unknownFeeds, feed.UnknownFeed{lines(dev), err.Error()})
+			unknownFeeds = append(unknownFeeds, feed.UnknownItem{lines(dev), err.Error()})
 			continue
 		}
 
@@ -93,7 +92,7 @@ func (dp *devotionalParser) Parse(r io.Reader) (*feed.ParseFeeds, error) {
 		dp.items[f["title"]] = &f
 	}
 
-	return &feed.ParseFeeds{unknownFeeds, feeds}, nil
+	return &feed.ParsedItems{unknownFeeds, feeds}, nil
 }
 
 func (dp *devotionalParser) uniqueTitle(title string) error {
@@ -120,13 +119,18 @@ func (dp *devotionalParser) read(r io.Reader) (string, error) {
 	return content, nil
 }
 
-func (dp *devotionalParser) refreshCache(authorId string) error {
-	devotionals, err := dp.api.getDevotionals(authorId)
+func (dp *devotionalParser) refreshCache() error {
+	dp.devotionals = make(map[string]*Devotional)
+
+	if dp.to == nil {
+		return nil
+	}
+
+	devotionals, err := dp.api.getDevotionals(dp.to.AuthorId)
 	if err != nil {
 		return err
 	}
 
-	dp.devotionals = make(map[string]*Devotional)
 	for _, dev := range devotionals {
 		dp.devotionals[dev.Title] = dev
 	}
@@ -134,8 +138,7 @@ func (dp *devotionalParser) refreshCache(authorId string) error {
 }
 
 func splitDevotionals(text string) []string {
-	// day := regexp.MustCompile(`\n(\d{3}|\d{2}\n|\d{1}\n)`)
-	// day := regexp.MustCompile(`\n([0-9]+)\n`)
+
 	day := regexp.MustCompile(`\n([0-9]+)(\n|\s*\n)`)
 
 	devTexts := day.Split(text, -1)
@@ -151,7 +154,7 @@ func splitDevotionals(text string) []string {
 	return devs
 }
 
-func parseDevotional(text string) (feed.Feed, error) {
+func parseDevotional(text string) (feed.Item, error) {
 	titleIdx := 1
 	lines := lines(text)
 
@@ -181,7 +184,6 @@ func parseDevotional(text string) (feed.Feed, error) {
 	} else {
 		contentIdx := contentIndex(lines)
 		if contentIdx < 0 {
-			// log.Println(ErrFeedDoesNotHaveContent, text)
 			return nil, ErrFeedDoesNotHaveContent
 		}
 

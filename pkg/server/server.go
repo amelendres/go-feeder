@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/amelendres/go-feeder/pkg/feeding"
@@ -41,7 +40,6 @@ func (ds *FeederServer) importFeedHandler(w http.ResponseWriter, r *http.Request
 
 	err := ds.sender.Send(req)
 	if err != nil {
-		log.Print(err)
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
@@ -53,14 +51,12 @@ func (ds *FeederServer) parseFeedHandler(w http.ResponseWriter, r *http.Request)
 
 	var req feeding.FeedReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	feeds, err := ds.feeder.Feeds(req)
 	if err != nil {
-		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
