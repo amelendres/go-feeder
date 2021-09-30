@@ -1,13 +1,13 @@
 package feed
 
-type Feed []string
+type Item map[string]string
 
-type UnknownFeed struct {
-	Feed      []string
-	FeedError string
+type UnknownItem struct {
+	Item      []string
+	ItemError string
 }
 
-type ParseFeeds struct {
-	UnknownFeeds []UnknownFeed
-	Feeds        []Feed
+type ParsedItems struct {
+	UnknownItems []UnknownItem
+	Items        []Item
 }

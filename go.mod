@@ -1,6 +1,6 @@
 module github.com/amelendres/go-feeder
 
-go 1.14
+go 1.15
 
 require (
 	code.sajari.com/docconv v1.1.0
@@ -13,6 +13,6 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.6.1
 	github.com/unidoc/unioffice v1.4.0
-	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
+	github.com/xuri/excelize/v2 v2.4.1
 	google.golang.org/api v0.29.0
 )

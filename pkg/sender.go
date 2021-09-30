@@ -1,8 +1,16 @@
 package feed
 
-type Destination interface{}
+type Destination struct {
+	PlanId      string
+	PublisherId string
+	AuthorId    string
+}
+
+func NewDestination(planId, publisherId, authorId string) *Destination {
+	return &Destination{planId, publisherId, authorId}
+}
 
 type Sender interface {
-	Send(feeds []Feed) error
-	Destination(info Destination)
+	Send(items []Item) error
+	Destination(d *Destination)
 }

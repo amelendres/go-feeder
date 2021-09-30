@@ -1,5 +1,8 @@
 package feed
 
+import "io"
+
 type Parser interface {
-	Parse(txt string) ([]Feed, []UnknownFeed)
+	Parse(r io.Reader) (*ParsedItems, error)
+	Destination(d *Destination)
 }
